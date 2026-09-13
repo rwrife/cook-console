@@ -1,0 +1,21 @@
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+*.xcscmblueprint
+
+# SwiftPM
+.build/
+.swiftpm/
+Package.resolved.lock
+
+# CI / local
+*.ipa
+*.dSYM.zip
+*.dSYM
+.env
+secrets/
+
+# macOS
+.DS_Store
