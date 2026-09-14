@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  privacy-gate:
+    name: Zero-network gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if any networking API is referenced
+        run: |
+          set -euo pipefail
+          if grep -rnE 'URLSession|NWConnection|Network\.framework|MFMailComposeViewController|CFNetwork|WebSocket|CFStream' Sources/ Tests/ 2>/dev/null; then
+            echo "::error::MVP is local-first — networking APIs are banned (see PLAN.md non-goals)."
+            exit 1
+          fi
+          echo "No networking APIs referenced."
+
+  build-test:
+    name: Build & test (iOS 26 SDK)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce iOS 26+ SDK
+        run: |
+          set -euo pipefail
+          SDK_MAJOR=$(xcodebuild -showsdls 2>/dev/null | grep -o 'iphoneos[0-9]*' | sort -V | tail -1 | grep -o '[0-9]*$')
+          echo "Latest iOS SDK major version: $SDK_MAJOR"
+          if [ "${SDK_MAJOR:-0}" -lt 26 ]; then
+            echo "::error::iOS SDK $SDK_MAJOR is older than the required iOS 26 pin."
+            exit 1
+          fi
+
+      - name: Build for generic iOS Simulator
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project CookConsole.xcodeproj \
+            -scheme CookConsole \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run unit tests (iPhone 17 simulator)
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project CookConsole.xcodeproj \
+            -scheme CookConsole \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cookconsole-simulator-build
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/Build/Products/Debug-iphonesimulator/CookConsole.app
+          if-no-files-found: warn
+          retention-days: 7
