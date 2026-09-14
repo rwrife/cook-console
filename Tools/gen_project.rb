@@ -1,12 +1,14 @@
 #!/usr/bin/env ruby
 # Generates CookConsole.xcodeproj for the Cook Console iOS app.
-# Run inside: docker run --rm -v "$PWD:/work" ruby:3.3-slim bash -lc "gem install xcodeproj --no-document && ruby /work/Tools/gen_project.rb"
+# Run from any checkout location: ruby Tools/gen_project.rb
 require 'xcodeproj'
+require 'fileutils'
+require 'json'
 
-Dir.chdir('/work')
+repo_root = File.expand_path('..', __dir__)
+Dir.chdir(repo_root)
 
 proj_path = 'CookConsole.xcodeproj'
-require 'fileutils'
 FileUtils.rm_rf(proj_path)
 
 project = Xcodeproj::Project.new(proj_path)
@@ -24,10 +26,37 @@ tests.add_file_references(
 )
 tests.add_dependency(app)
 
+# --- Swift package dependencies --------------------------------------------
+# Pin Xcode's separate package graph to the immutable revision locked by
+# SwiftPM at the repository root.
+resolved = JSON.parse(File.read('Package.resolved'))
+grdb_pin = resolved.fetch('pins').find { |pin| pin.fetch('identity') == 'grdb.swift' }
+raise 'GRDB.swift is missing from Package.resolved' unless grdb_pin
+grdb_revision = grdb_pin.fetch('state').fetch('revision')
+
+grdb_package = project.new(Xcodeproj::Project::Object::XCRemoteSwiftPackageReference)
+grdb_package.repositoryURL = 'https://github.com/groue/GRDB.swift.git'
+grdb_package.requirement = {
+  'kind' => 'revision',
+  'revision' => grdb_revision,
+}
+project.root_object.package_references << grdb_package
+
+[app, tests].each do |target|
+  product = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)
+  product.package = grdb_package
+  product.product_name = 'GRDB'
+  target.package_product_dependencies << product
+
+  build_file = project.new(Xcodeproj::Project::Object::PBXBuildFile)
+  build_file.product_ref = product
+  target.frameworks_build_phase.files << build_file
+end
+
 # --- Build settings --------------------------------------------------------
 common = {
   'IPHONEOS_DEPLOYMENT_TARGET' => '26.0',
-  'SWIFT_VERSION' => '5.0',
+  'SWIFT_VERSION' => '6.0',
   'SWIFT_STRICT_CONCURRENCY' => 'complete',
   'CODE_SIGN_STYLE' => 'Automatic',
   'ENABLE_USER_SCRIPT_SANDBOXING' => 'YES',
