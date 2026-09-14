@@ -33,7 +33,7 @@ jobs:
       - name: Enforce iOS 26+ SDK
         run: |
           set -euo pipefail
-          SDK_LINE=$(xcodebuild -showsdls | grep -E '^[[:space:]]+iphoneos[0-9]+' | sort -V | tail -1)
+          SDK_LINE=$(xcodebuild -showsdks | grep -E '^[[:space:]]+iphoneos[0-9]+' | sort -V | tail -1)
           echo "Detected device SDK line: ${SDK_LINE:-<none>}"
           SDK_MAJOR=$(echo "${SDK_LINE:-}" | awk '{print $1}' | sed 's/iphoneos//; s/\..*$//')
           echo "Latest iOS device SDK major version: ${SDK_MAJOR:-none}"
