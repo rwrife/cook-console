@@ -33,9 +33,11 @@ jobs:
       - name: Enforce iOS 26+ SDK
         run: |
           set -euo pipefail
-          SDK_LINE=$(xcodebuild -showsdks | grep -E '^[[:space:]]+iphoneos[0-9]+' | sort -V | tail -1)
-          echo "Detected device SDK line: ${SDK_LINE:-<none>}"
-          SDK_MAJOR=$(echo "${SDK_LINE:-}" | awk '{print $1}' | sed 's/iphoneos//; s/\..*$//')
+          SHOW=$(xcodebuild -showsdks || true)
+          echo "--- xcodebuild -showsdks ---"
+          echo "$SHOW"
+          echo "------------------------------"
+          SDK_MAJOR=$(echo "$SHOW" | grep -oE 'iphoneos[0-9]+' | sed 's/^iphoneos//' | cut -d. -f1 | sort -V | tail -1 || true)
           echo "Latest iOS device SDK major version: ${SDK_MAJOR:-none}"
           if [ "${SDK_MAJOR:-0}" -lt 26 ]; then
             echo "::error::iOS SDK ${SDK_MAJOR:-none} is older than the required iOS 26 pin."
