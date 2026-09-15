@@ -117,7 +117,18 @@ final class RecipeWorkflowUITests: XCTestCase {
             predicate: hidden,
             object: keyboard
         )
-        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 2), .completed)
+        let result = XCTWaiter.wait(for: [expectation], timeout: 2)
+        if result != .completed {
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Keyboard dismissal failure UI hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        XCTAssertEqual(
+            result,
+            .completed,
+            "Keyboard remained visible after Done Editing.\n\(keyboard.debugDescription)"
+        )
     }
 
     private func tapWhenHittable(

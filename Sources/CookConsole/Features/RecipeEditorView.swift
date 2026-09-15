@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RecipeEditorView: View {
     private enum EditorField: Hashable {
@@ -113,7 +114,7 @@ struct RecipeEditorView: View {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Done") {
-                    focusedField = nil
+                    dismissKeyboard()
                 }
                 .accessibilityIdentifier("Done Editing")
             }
@@ -130,6 +131,18 @@ struct RecipeEditorView: View {
             get: { validationMessage != nil },
             set: { if !$0 { validationMessage = nil } }
         )
+    }
+
+    private func dismissKeyboard() {
+        focusedField = nil
+
+        let activeWindow = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)
+
+        _ = activeWindow?.endEditing(true)
     }
 
     private func save() {
