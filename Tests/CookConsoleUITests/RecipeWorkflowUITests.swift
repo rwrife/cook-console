@@ -75,17 +75,18 @@ final class RecipeWorkflowUITests: XCTestCase {
         replaceText(in: app.textFields["Servings"], with: "2")
         enterText("Stock", in: app.textFields["Ingredient name 1"], form: form)
         replaceText(in: app.textFields["Ingredient amount 1"], with: "2")
-        dismissKeyboard(in: form)
+        dismissKeyboard()
         tapWhenHittable(app.buttons["Ingredient unit 1"], scrolling: form)
         tapWhenHittable(app.buttons["cup"])
         enterText("Simmer gently.", in: app.textViews["Step 1"], form: form)
+        dismissKeyboard()
         if let secondStep {
-            dismissKeyboard(in: form)
             tapWhenHittable(app.buttons["Add Step"], scrolling: form)
             enterText(secondStep, in: app.textViews["Step 2"], form: form)
+            dismissKeyboard()
         }
         enterText("quick, dinner", in: app.textFields["Tags"], form: form)
-        dismissKeyboard(in: form)
+        dismissKeyboard()
         tapWhenHittable(app.buttons["Save Recipe"], scrolling: form)
     }
 
@@ -107,13 +108,14 @@ final class RecipeWorkflowUITests: XCTestCase {
         element.typeText(text)
     }
 
-    private func dismissKeyboard(in form: XCUIElement) {
-        guard app.keyboards.firstMatch.exists else { return }
-        form.swipeUp()
+    private func dismissKeyboard() {
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.exists)
+        tapWhenHittable(app.buttons["Done Editing"])
         let hidden = NSPredicate(format: "exists == false")
         let expectation = XCTNSPredicateExpectation(
             predicate: hidden,
-            object: app.keyboards.firstMatch
+            object: keyboard
         )
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 2), .completed)
     }
@@ -132,10 +134,13 @@ final class RecipeWorkflowUITests: XCTestCase {
     }
 
     private func scrollToHittable(_ element: XCUIElement, in container: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 2))
-        for _ in 0..<8 where !element.isHittable {
+        for _ in 0..<8 {
+            if element.exists && element.isHittable {
+                return
+            }
             container.swipeUp()
         }
+        XCTAssertTrue(element.waitForExistence(timeout: 2))
         XCTAssertTrue(element.isHittable)
     }
 }

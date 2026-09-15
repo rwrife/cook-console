@@ -51,11 +51,16 @@ struct RecipeLibraryView: View {
                     }
                     .accessibilityLabel("Filter by tag")
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add Recipe", systemImage: "plus") {
-                        showingCreate = true
-                    }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button("Add Recipe", systemImage: "plus") {
+                    showingCreate = true
                 }
+                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.bar)
             }
             .navigationDestination(for: UUID.self) { recipeID in
                 RecipeDetailView(recipeID: recipeID)
