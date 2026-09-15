@@ -82,6 +82,26 @@ enum RecipeDatabase {
                     .check(sql: "is_favorite IN (0, 1)")
             }
         }
+        migrator.registerMigration("v3_create_cook_sessions") { db in
+            try db.create(table: "cook_sessions") { table in
+                table.column("id", .text).primaryKey()
+                table.column("recipe_id", .text)
+                    .notNull()
+                    .references("recipes", onDelete: .cascade)
+                table.column("started_at", .datetime).notNull()
+                table.column("ended_at", .datetime)
+                table.column("status", .text).notNull().check(
+                    sql: "status IN ('active', 'completed', 'abandoned')"
+                )
+                table.column("current_step", .integer).notNull().defaults(to: 0)
+                    .check(sql: "current_step >= 0")
+            }
+            try db.create(
+                index: "cook_sessions_recipe_status_ended",
+                on: "cook_sessions",
+                columns: ["recipe_id", "status", "ended_at"]
+            )
+        }
         return migrator
     }
 }

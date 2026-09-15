@@ -59,6 +59,8 @@ to the same revision. Both SwiftPM and the generated Xcode project use Swift 6.
 |---|---|---|
 | `CookConsole` | iOS app | Bundle ID `com.infinityball.cookconsole`, SwiftUI lifecycle |
 | `CookConsoleTests` | unit tests | Hosted in the app; `@testable import CookConsole` |
+| `CookConsoleUITests` | UI tests | Launches `CookConsole`; resets only its local test database |
 
-The shared `CookConsole` scheme builds the app and runs the test target, so
-`xcodebuild -scheme CookConsole test` works headlessly in CI.
+The shared `CookConsole` scheme builds the app and runs both test targets, so
+`xcodebuild -scheme CookConsole test` runs unit and UI coverage headlessly in
+the canonical macOS CI job.

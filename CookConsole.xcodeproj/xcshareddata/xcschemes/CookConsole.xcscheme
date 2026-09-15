@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "C7EBF22489D192B6FED58EC0"
+               BlueprintIdentifier = "43510AB38CAFF9F7F8232D08"
                BuildableName = "CookConsole.app"
                BlueprintName = "CookConsole"
                ReferencedContainer = "container:CookConsole.xcodeproj">
@@ -30,7 +30,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "C7EBF22489D192B6FED58EC0"
+            BlueprintIdentifier = "43510AB38CAFF9F7F8232D08"
             BuildableName = "CookConsole.app"
             BlueprintName = "CookConsole"
             ReferencedContainer = "container:CookConsole.xcodeproj">
@@ -41,9 +41,19 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "63DF30B3ECCD61BD85AAF739"
+               BlueprintIdentifier = "95EC4D79E222A302FA167A47"
                BuildableName = "CookConsoleTests.xctest"
                BlueprintName = "CookConsoleTests"
+               ReferencedContainer = "container:CookConsole.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "083054FCADB1C43348BD50FC"
+               BuildableName = "CookConsoleUITests.xctest"
+               BlueprintName = "CookConsoleUITests"
                ReferencedContainer = "container:CookConsole.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -63,7 +73,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "C7EBF22489D192B6FED58EC0"
+            BlueprintIdentifier = "43510AB38CAFF9F7F8232D08"
             BuildableName = "CookConsole.app"
             BlueprintName = "CookConsole"
             ReferencedContainer = "container:CookConsole.xcodeproj">
@@ -80,7 +90,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "C7EBF22489D192B6FED58EC0"
+            BlueprintIdentifier = "43510AB38CAFF9F7F8232D08"
             BuildableName = "CookConsole.app"
             BlueprintName = "CookConsole"
             ReferencedContainer = "container:CookConsole.xcodeproj">

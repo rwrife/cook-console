@@ -4,6 +4,47 @@ import XCTest
 @testable import CookConsole
 
 final class DomainModelTests: XCTestCase {
+    func testRecipeDraftRoundTripsLosslesslyInDecimalPointLocale() throws {
+        let recipe = try Recipe(
+            title: "Precision",
+            servings: 1.234_567_890_123_456_7,
+            ingredients: [
+                try Ingredient(name: "Saffron", amount: 0.000_000_123_456_789, unit: .gram),
+            ],
+            steps: [
+                try RecipeStep(instruction: "Wait.", timerDuration: 0.123_456_789),
+            ]
+        )
+
+        let draft = RecipeDraft(recipe: recipe, locale: Locale(identifier: "en_US"))
+
+        XCTAssertEqual(try draft.makeRecipe(), recipe)
+    }
+
+    func testRecipeDraftRoundTripsAndParsesDecimalCommaConsistently() throws {
+        let locale = Locale(identifier: "de_DE")
+        let recipe = try Recipe(
+            title: "Präzision",
+            servings: 1.25,
+            ingredients: [try Ingredient(name: "Salz", amount: 0.000_000_125, unit: .gram)],
+            steps: [try RecipeStep(instruction: "Warten.", timerDuration: 7.25)]
+        )
+        var draft = RecipeDraft(recipe: recipe, locale: locale)
+
+        XCTAssertTrue(draft.servings.contains(","))
+        XCTAssertTrue(draft.ingredients[0].amount.contains(","))
+        XCTAssertTrue(draft.steps[0].timerMinutes.contains(","))
+        XCTAssertEqual(try draft.makeRecipe(), recipe)
+
+        draft.servings = "2,5"
+        draft.ingredients[0].amount = "0,125"
+        draft.steps[0].timerMinutes = "1,5"
+        let edited = try draft.makeRecipe()
+        XCTAssertEqual(edited.servings, 2.5)
+        XCTAssertEqual(edited.ingredients[0].amount, 0.125)
+        XCTAssertEqual(edited.steps[0].timerDuration, 90)
+    }
+
     func testRecipeRetainsStableIDsAndDomainValues() throws {
         let recipeID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
         let ingredientID = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!

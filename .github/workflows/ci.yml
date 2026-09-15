@@ -54,7 +54,7 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Run unit tests (iPhone 17 simulator)
+      - name: Run unit and UI tests (iPhone 17 simulator)
         run: |
           set -euo pipefail
           xcodebuild test \

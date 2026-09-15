@@ -73,7 +73,9 @@ The project is an **iPhone Duo dual-screen design target**: on the dual-screen d
 
 ## Current status & milestones
 
-- **Status:** M1 skeleton and M2 recipe domain/data core are implemented. UI, timers, history, export, and device verification remain future milestones.
+- **Status:** M1/M2 plus the recipe library, editor, serving scaler, and
+  persisted step-by-step cook workflow are implemented. Timers, broader
+  history UI, export, and device verification remain future milestones.
 - M1: Xcode project skeleton (iOS 26 SDK, SwiftUI), CI build, unit-test target. **Complete.**
 - M2: Pure recipe domain, GRDB recipe store, servings scaling, and plain-text recipe parser with tests. **Complete for issue #2; history belongs to later session work.**
 - M3: Cook mode + step timers + notifications.

@@ -21,7 +21,12 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
             ],
             path: "Sources/CookConsole",
-            exclude: ["ContentView.swift", "CookConsoleApp.swift"]
+            exclude: [
+                "Application",
+                "Features",
+                "ContentView.swift",
+                "CookConsoleApp.swift",
+            ]
         ),
         .testTarget(
             name: "CookConsoleTests",

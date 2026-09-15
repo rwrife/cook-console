@@ -51,6 +51,124 @@ final class RecipeRepository {
         }
     }
 
+    func fetchLibrary(
+        searchText: String = "",
+        selectedTag: String? = nil
+    ) throws -> [Recipe] {
+        let recipes = try database.read { db in
+            let identifiers = try String.fetchAll(
+                db,
+                sql: """
+                    SELECT recipes.id
+                    FROM recipes
+                    LEFT JOIN cook_sessions
+                      ON cook_sessions.recipe_id = recipes.id
+                     AND cook_sessions.status = 'completed'
+                    GROUP BY recipes.id
+                    ORDER BY recipes.is_favorite DESC,
+                             MAX(cook_sessions.ended_at) DESC,
+                             recipes.title COLLATE NOCASE,
+                             recipes.id
+                    """
+            )
+            return try identifiers.map { identifier in
+                guard let id = UUID(uuidString: identifier),
+                      let recipe = try fetchRecipe(id: id, from: db)
+                else {
+                    throw RecipeRepositoryError.corruptData("Recipe ID '\(identifier)' is invalid.")
+                }
+                return recipe
+            }
+        }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tag = selectedTag?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return recipes.filter { recipe in
+            let matchesTitle = query.isEmpty || recipe.title.localizedCaseInsensitiveContains(query)
+            let matchesTag = tag?.isEmpty != false || recipe.tags.contains {
+                $0.caseInsensitiveCompare(tag ?? "") == .orderedSame
+            }
+            return matchesTitle && matchesTag
+        }
+    }
+
+    func beginCook(for recipeID: UUID, at date: Date = Date()) throws -> CookSession {
+        try database.write { db in
+            if let active = try fetchActiveCookSession(for: recipeID, from: db) {
+                return active
+            }
+            let id = UUID()
+            try db.execute(
+                sql: """
+                    INSERT INTO cook_sessions
+                        (id, recipe_id, started_at, status, current_step)
+                    VALUES (?, ?, ?, 'active', 0)
+                    """,
+                arguments: [id.uuidString, recipeID.uuidString, date]
+            )
+            return CookSession(
+                id: id,
+                recipeID: recipeID,
+                startedAt: date,
+                endedAt: nil,
+                status: .active,
+                currentStepIndex: 0
+            )
+        }
+    }
+
+    func fetchCookSessions(for recipeID: UUID) throws -> [CookSession] {
+        try database.read { db in
+            try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT id, recipe_id, started_at, ended_at, status, current_step
+                    FROM cook_sessions
+                    WHERE recipe_id = ?
+                    ORDER BY started_at, id
+                    """,
+                arguments: [recipeID.uuidString]
+            ).map(decodeCookSession)
+        }
+    }
+
+    func updateCookPosition(sessionID: UUID, to stepIndex: Int) throws {
+        guard stepIndex >= 0 else { throw CookSessionError.invalidStep }
+        try database.write { db in
+            try db.execute(
+                sql: """
+                    UPDATE cook_sessions
+                    SET current_step = ?
+                    WHERE id = ? AND status = 'active'
+                      AND ? < (
+                        SELECT COUNT(*) FROM recipe_steps
+                        WHERE recipe_id = cook_sessions.recipe_id
+                      )
+                    """,
+                arguments: [stepIndex, sessionID.uuidString, stepIndex]
+            )
+            guard db.changesCount == 1 else { throw CookSessionError.invalidStep }
+        }
+    }
+
+    func endCook(
+        sessionID: UUID,
+        as status: CookSessionStatus,
+        at date: Date = Date()
+    ) throws {
+        guard status != .active else { throw CookSessionError.notActive }
+        try database.write { db in
+            try db.execute(
+                sql: """
+                    UPDATE cook_sessions
+                    SET status = ?, ended_at = ?
+                    WHERE id = ? AND status = 'active'
+                    """,
+                arguments: [status.rawValue, date, sessionID.uuidString]
+            )
+            guard db.changesCount == 1 else { throw CookSessionError.notActive }
+        }
+    }
+
     func update(_ recipe: Recipe) throws {
         try database.write { db in
             try db.execute(
@@ -71,6 +189,14 @@ final class RecipeRepository {
             }
             try deleteChildren(of: recipe.id, from: db)
             try insertChildren(of: recipe, into: db)
+            try db.execute(
+                sql: """
+                    UPDATE cook_sessions
+                    SET current_step = ?
+                    WHERE recipe_id = ? AND status = 'active' AND current_step >= ?
+                    """,
+                arguments: [recipe.steps.count - 1, recipe.id.uuidString, recipe.steps.count]
+            )
         }
     }
 
@@ -218,5 +344,43 @@ final class RecipeRepository {
         } catch {
             throw RecipeRepositoryError.corruptData(error.localizedDescription)
         }
+    }
+
+    private func fetchActiveCookSession(
+        for recipeID: UUID,
+        from db: Database
+    ) throws -> CookSession? {
+        guard let row = try Row.fetchOne(
+            db,
+            sql: """
+                SELECT id, recipe_id, started_at, ended_at, status, current_step
+                FROM cook_sessions
+                WHERE recipe_id = ? AND status = 'active'
+                ORDER BY started_at DESC, id DESC
+                LIMIT 1
+                """,
+            arguments: [recipeID.uuidString]
+        ) else { return nil }
+        return try decodeCookSession(row)
+    }
+
+    private func decodeCookSession(_ row: Row) throws -> CookSession {
+        let idString: String = row["id"]
+        let recipeIDString: String = row["recipe_id"]
+        let statusString: String = row["status"]
+        guard let id = UUID(uuidString: idString),
+              let recipeID = UUID(uuidString: recipeIDString),
+              let status = CookSessionStatus(rawValue: statusString)
+        else {
+            throw RecipeRepositoryError.corruptData("Invalid cook session identity or status.")
+        }
+        return CookSession(
+            id: id,
+            recipeID: recipeID,
+            startedAt: row["started_at"],
+            endedAt: row["ended_at"],
+            status: status,
+            currentStepIndex: row["current_step"]
+        )
     }
 }
