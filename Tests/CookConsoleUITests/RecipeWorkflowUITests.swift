@@ -112,21 +112,18 @@ final class RecipeWorkflowUITests: XCTestCase {
         let keyboard = app.keyboards.firstMatch
         XCTAssertTrue(keyboard.exists)
         tapWhenHittable(app.buttons["Done Editing"])
-        let hidden = NSPredicate(format: "exists == false")
-        let expectation = XCTNSPredicateExpectation(
-            predicate: hidden,
-            object: keyboard
-        )
-        let result = XCTWaiter.wait(for: [expectation], timeout: 2)
-        if result != .completed {
+        // Hosted simulator AX snapshots can take longer than two seconds even
+        // after the keyboard is gone. Use XCTest's disappearance API, not a
+        // predicate whose first snapshot can consume its entire timeout.
+        let disappeared = keyboard.waitForNonExistence(timeout: 10)
+        if !disappeared {
             let hierarchy = XCTAttachment(string: app.debugDescription)
             hierarchy.name = "Keyboard dismissal failure UI hierarchy"
             hierarchy.lifetime = .keepAlways
             add(hierarchy)
         }
-        XCTAssertEqual(
-            result,
-            .completed,
+        XCTAssertTrue(
+            disappeared,
             "Keyboard remained visible after Done Editing.\n\(keyboard.debugDescription)"
         )
     }
