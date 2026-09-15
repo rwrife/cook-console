@@ -23,6 +23,8 @@ GRDB applies these migrations in order:
    constraints mirror domain scalar validation.
 2. `v2_add_recipe_favorite` adds the non-null `is_favorite` column with a
    default of false and a Boolean-only `0`/`1` check.
+3. `v3_create_cook_sessions` stores active, completed, and abandoned local cook
+   sessions, including the current zero-based step and start/end timestamps.
 
 Text checks use SQLite's built-in two-argument `trim` with the explicit Unicode
 characters in Foundation's `whitespacesAndNewlines`, so every database
@@ -106,3 +108,20 @@ Each focused cycle used `swift test --filter <suite>` in
 temporary container home. Final verification uses the unfiltered command in
 `docs/BUILD.md`. iOS builds and iPhone 17 simulator tests require macOS/Xcode
 26 and remain the canonical CI evidence; Linux results are not iOS results.
+
+## Recipe library and cook workflow
+
+The library query groups favorites first, then orders each group by the most
+recent completed cook and finally title. Title search trims the query and is
+case-insensitive; tag filtering matches a complete normalized tag
+case-insensitively. Both filters compose without changing the library order.
+
+Opening cook mode creates an active session before showing a step. Re-entry
+resumes that active row and its persisted position. Next/back movement is
+bounded to one step. Leaving through **Full recipe** deliberately leaves the
+session active; **Complete** and **Abandon Cook** store terminal outcomes and
+end timestamps locally. Only completed outcomes affect recently-cooked order.
+
+The recipe detail passes its target-serving ratio to `ScalingEngine` on every
+render. Controls change the target in 0.5-serving increments, clamp at 0.5,
+and reset to the recipe's stored servings.

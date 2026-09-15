@@ -26,6 +26,13 @@ tests.add_file_references(
 )
 tests.add_dependency(app)
 
+# --- UI test target --------------------------------------------------------
+ui_tests = project.new_target(:ui_test_bundle, 'CookConsoleUITests', :ios, '26.0')
+ui_tests.add_file_references(
+  Dir['Tests/CookConsoleUITests/**/*.swift'].sort.map { |f| project.main_group.new_file(f) }
+)
+ui_tests.add_dependency(app)
+
 # --- Swift package dependencies --------------------------------------------
 # Pin Xcode's separate package graph to the immutable revision locked by
 # SwiftPM at the repository root.
@@ -84,12 +91,19 @@ tests.build_configurations.each do |c|
   c.build_settings['BUNDLE_LOADER'] = '$(TEST_HOST)'
 end
 
+ui_tests.build_configurations.each do |c|
+  c.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.infinityball.cookconsole.uitests'
+  c.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
+  c.build_settings['TEST_TARGET_NAME'] = 'CookConsole'
+end
+
 project.save
 
 # --- Shared scheme ----------------------------------------------------------
 scheme = Xcodeproj::XCScheme.new
 scheme.add_build_target(app)
 scheme.add_test_target(tests)
+scheme.add_test_target(ui_tests)
 scheme.set_launch_target(app)
 scheme.save_as(proj_path, 'CookConsole', true)
 

@@ -4,6 +4,57 @@ import XCTest
 @testable import CookConsole
 
 final class RecipeRepositoryTests: XCTestCase {
+    func testLibraryTagFilterMatchesWholeTagCaseInsensitively() throws {
+        let repository = try makeRepository()
+        let weekend = try makeRecipe(title: "Weekend Bread")
+        let quick = try Recipe(
+            title: "Quick Toast",
+            servings: 1,
+            ingredients: [try Ingredient(name: "Bread", amount: 1, unit: .each)],
+            steps: [try RecipeStep(instruction: "Toast.")],
+            tags: ["quick"]
+        )
+        try repository.create(weekend)
+        try repository.create(quick)
+
+        XCTAssertEqual(try repository.fetchLibrary(selectedTag: "WEEKEND"), [weekend])
+    }
+
+    func testLibraryTitleSearchIsCaseInsensitiveAndTrimsWhitespace() throws {
+        let repository = try makeRepository()
+        let soup = try makeRecipe(title: "Tomato Soup")
+        let bread = try makeRecipe(title: "Bread")
+        try repository.create(soup)
+        try repository.create(bread)
+
+        XCTAssertEqual(try repository.fetchLibrary(searchText: "  SOUP  "), [soup])
+    }
+
+    func testLibrarySortsFavoritesFirstThenMostRecentlyCooked() throws {
+        let repository = try makeRepository()
+        let olderFavorite = try makeRecipe(title: "Older favorite", favorite: true)
+        let newerFavorite = try makeRecipe(title: "Newer favorite", favorite: true)
+        let recentlyCooked = try makeRecipe(title: "Recently cooked")
+        let neverCooked = try makeRecipe(title: "Never cooked")
+        for recipe in [olderFavorite, newerFavorite, recentlyCooked, neverCooked] {
+            try repository.create(recipe)
+        }
+        for (recipe, timestamp) in [
+            (olderFavorite, 100.0),
+            (newerFavorite, 200.0),
+            (recentlyCooked, 300.0),
+        ] {
+            let date = Date(timeIntervalSince1970: timestamp)
+            let session = try repository.beginCook(for: recipe.id, at: date)
+            try repository.endCook(sessionID: session.id, as: .completed, at: date)
+        }
+
+        XCTAssertEqual(
+            try repository.fetchLibrary().map(\.id),
+            [newerFavorite.id, olderFavorite.id, recentlyCooked.id, neverCooked.id]
+        )
+    }
+
     func testVersionedMigrationsBuildExpectedSchemaInMemory() throws {
         let database = try RecipeDatabase.makeInMemory()
 
@@ -23,11 +74,13 @@ final class RecipeRepositoryTests: XCTestCase {
         XCTAssertEqual(migrationIDs, [
             "v1_create_recipe_core",
             "v2_add_recipe_favorite",
+            "v3_create_cook_sessions",
         ])
         XCTAssertTrue(tables.contains("recipes"))
         XCTAssertTrue(tables.contains("ingredients"))
         XCTAssertTrue(tables.contains("recipe_steps"))
         XCTAssertTrue(tables.contains("recipe_tags"))
+        XCTAssertTrue(tables.contains("cook_sessions"))
     }
 
     func testV1DatabaseUpgradesToLatestWithoutLosingRows() throws {

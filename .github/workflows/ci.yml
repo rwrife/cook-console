@@ -54,15 +54,25 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Run unit tests (iPhone 17 simulator)
+      - name: Run unit and UI tests (iPhone 17 simulator)
         run: |
           set -euo pipefail
           xcodebuild test \
             -project CookConsole.xcodeproj \
             -scheme CookConsole \
             -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -resultBundlePath "$RUNNER_TEMP/CookConsoleTests.xcresult" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cookconsole-test-results
+          path: ${{ runner.temp }}/CookConsoleTests.xcresult
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload build artifact
         if: always()
