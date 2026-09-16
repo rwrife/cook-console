@@ -67,7 +67,77 @@ final class RecipeWorkflowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["No Recipes"].waitForExistence(timeout: 2))
     }
 
-    private func createRecipe(title: String, secondStep: String? = nil) {
+    func testStepTimersStartPauseResumeExtendCancelAndRunConcurrently() {
+        createRecipe(
+            title: "Timed Soup",
+            secondStep: "Rest before serving.",
+            timerMinutes: "10",
+            secondTimerMinutes: "5"
+        )
+        app.buttons["Timed Soup"].tap()
+        app.buttons["Cook"].tap()
+        let cookScrollView = app.scrollViews.firstMatch
+
+        tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
+        XCTAssertTrue(app.staticTexts["Timer notification fallback"].exists)
+        tapWhenHittable(app.buttons["Pause timer"], scrolling: cookScrollView)
+        tapWhenHittable(app.buttons["Resume timer"], scrolling: cookScrollView)
+        tapWhenHittable(app.buttons["Extend timer by 2 minutes"], scrolling: cookScrollView)
+
+        app.buttons["Next step"].tap()
+        tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
+        XCTAssertEqual(app.buttons.matching(identifier: "Pause timer").count, 2)
+
+        app.buttons.matching(identifier: "Cancel timer").firstMatch.tap()
+        XCTAssertEqual(app.buttons.matching(identifier: "Pause timer").count, 1)
+    }
+
+    func testRunningTimerSurvivesProcessRelaunch() {
+        createRecipe(title: "Relaunch Rice", timerMinutes: "10")
+        app.buttons["Relaunch Rice"].tap()
+        app.buttons["Cook"].tap()
+        tapWhenHittable(app.buttons["Start step timer"], scrolling: app.scrollViews.firstMatch)
+        XCTAssertTrue(app.buttons["Pause timer"].exists)
+
+        app.terminate()
+        app.launchArguments = []
+        app.launch()
+        app.buttons["Relaunch Rice"].tap()
+        app.buttons["Cook"].tap()
+
+        XCTAssertTrue(app.buttons["Pause timer"].waitForExistence(timeout: 2))
+    }
+
+    func testDeniedShortTimerCompletesInCookCoverAndAfterFullRecipeExit() {
+        app.terminate()
+        app.launchArguments = ["-ui-testing-reset", "-ui-testing-short-timer-fixture"]
+        app.launch()
+
+        app.buttons["Short Timer Fixture"].tap()
+        app.buttons["Cook"].tap()
+        let cookScrollView = app.scrollViews.firstMatch
+        tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
+        XCTAssertTrue(app.staticTexts["Timer notification fallback"].exists)
+
+        let completion = app.alerts["Timer Finished"]
+        XCTAssertTrue(completion.waitForExistence(timeout: 5))
+        XCTAssertTrue(completion.staticTexts["Step 1: Rest briefly. timer finished."].exists)
+        completion.buttons["OK"].tap()
+
+        tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
+        app.buttons["Full recipe"].tap()
+        XCTAssertTrue(app.navigationBars["Short Timer Fixture"].waitForExistence(timeout: 2))
+        XCTAssertTrue(completion.waitForExistence(timeout: 5))
+        XCTAssertTrue(completion.staticTexts["Step 1: Rest briefly. timer finished."].exists)
+        completion.buttons["OK"].tap()
+    }
+
+    private func createRecipe(
+        title: String,
+        secondStep: String? = nil,
+        timerMinutes: String? = nil,
+        secondTimerMinutes: String? = nil
+    ) {
         tapWhenHittable(app.buttons["Add Recipe"])
         let form = app.descendants(matching: .any)["Recipe editor form"]
         XCTAssertTrue(form.waitForExistence(timeout: 2))
@@ -80,10 +150,18 @@ final class RecipeWorkflowUITests: XCTestCase {
         tapWhenHittable(app.buttons["cup"])
         enterText("Simmer gently.", in: app.textViews["Step 1"], form: form)
         dismissKeyboard()
+        if let timerMinutes {
+            enterText(timerMinutes, in: app.textFields["Step timer 1"], form: form)
+            dismissKeyboard()
+        }
         if let secondStep {
             tapWhenHittable(app.buttons["Add Step"], scrolling: form)
             enterText(secondStep, in: app.textViews["Step 2"], form: form)
             dismissKeyboard()
+            if let secondTimerMinutes {
+                enterText(secondTimerMinutes, in: app.textFields["Step timer 2"], form: form)
+                dismissKeyboard()
+            }
         }
         enterText("quick, dinner", in: app.textFields["Tags"], form: form)
         dismissKeyboard()

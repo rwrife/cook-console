@@ -60,7 +60,8 @@ The project is an **iPhone Duo dual-screen design target**: on the dual-screen d
 ## Privacy, permissions, and data storage
 
 - **Local-first**: all recipes, notes, timer history, and settings are stored on-device (SQLite). No accounts, no analytics, no ad SDKs, no background network use. The app performs no network requests in MVP.
-- **Notifications** (optional): local timers only; denied notifications simply mean on-screen alerts.
+- **Notifications** (optional): local timers only; denied or failed scheduling
+  falls back to app-level on-screen alerts while Cook Console remains open.
 - No camera, microphone, contacts, or location permissions. Photo attachment for finished-dish photos (optional) uses the photo picker with limited access and stores copies in app storage.
 - **Data ownership**: one-tap JSON (recipes + history) and CSV (history) export to the Files app; import restores from the same files. Deleting the app deletes all data.
 
@@ -73,12 +74,13 @@ The project is an **iPhone Duo dual-screen design target**: on the dual-screen d
 
 ## Current status & milestones
 
-- **Status:** M1/M2 plus the recipe library, editor, serving scaler, and
-  persisted step-by-step cook workflow are implemented. Timers, broader
-  history UI, export, and device verification remain future milestones.
+- **Status:** M1/M2 plus the recipe library, editor, serving scaler, persisted
+  step-by-step cook workflow, and concurrent per-step timers are implemented.
+  Broader history UI, export, adaptive console work, and device verification
+  remain future milestones.
 - M1: Xcode project skeleton (iOS 26 SDK, SwiftUI), CI build, unit-test target. **Complete.**
 - M2: Pure recipe domain, GRDB recipe store, servings scaling, and plain-text recipe parser with tests. **Complete for issue #2; history belongs to later session work.**
-- M3: Cook mode + step timers + notifications.
+- M3: Cook mode + step timers + notifications. **Timer scope complete; broader history remains.**
 - M4: Adaptive console/detail layout (regular-width two-column = Duo migration target).
 - M5: Import/export/backup + privacy review.
 - M6: Accessibility hardening + TestFlight release pipeline.

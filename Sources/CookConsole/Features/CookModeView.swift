@@ -19,11 +19,36 @@ struct CookModeView: View {
                             .foregroundStyle(.secondary)
 
                         ScrollView {
-                            Text(recipe.steps[progress.currentStepIndex].instruction)
-                                .font(.largeTitle)
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical)
+                            VStack(alignment: .leading, spacing: 20) {
+                                Text(recipe.steps[progress.currentStepIndex].instruction)
+                                    .font(.largeTitle)
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical)
+
+                                currentStepTimerControls(progress: progress)
+
+                                if store.notificationAuthorization == .denied,
+                                   !activeTimers.isEmpty {
+                                    Label(
+                                        "Notifications are off. Keep Cook Console open for on-screen timer alerts.",
+                                        systemImage: "bell.slash"
+                                    )
+                                    .font(.callout)
+                                    .foregroundStyle(.orange)
+                                    .accessibilityIdentifier("Timer notification fallback")
+                                }
+
+                                if !activeTimers.isEmpty {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Timers")
+                                            .font(.title2.bold())
+                                        ForEach(activeTimers) { timer in
+                                            TimerTile(timer: timer)
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         HStack(spacing: 16) {
@@ -74,7 +99,7 @@ struct CookModeView: View {
                     }
                 }
             }
-            .alert("Abandon this cook?", isPresented: $showingAbandonConfirmation) {
+            .confirmationDialog("Abandon this cook?", isPresented: $showingAbandonConfirmation) {
                 Button("Keep Cooking", role: .cancel) {}
                 Button("Abandon Cook", role: .destructive) { end(as: .abandoned) }
             } message: {
@@ -83,6 +108,7 @@ struct CookModeView: View {
             .onAppear(perform: begin)
         }
         .interactiveDismissDisabled()
+        .timerCompletionAlert()
     }
 
     private func begin() {
@@ -94,10 +120,44 @@ struct CookModeView: View {
                 stepCount: recipe.steps.count,
                 currentStepIndex: min(active.currentStepIndex, recipe.steps.count - 1)
             )
+            store.loadTimers(cookSessionID: active.id)
         } catch {
             store.present(error)
             dismiss()
         }
+    }
+
+    @ViewBuilder
+    private func currentStepTimerControls(progress: CookProgress) -> some View {
+        let step = recipe.steps[progress.currentStepIndex]
+        if let duration = step.timerDuration,
+           !activeTimers.contains(where: { $0.stepID == step.id }) {
+            Button {
+                guard let session else { return }
+                do {
+                    try store.startTimer(
+                        recipeID: recipe.id,
+                        step: step,
+                        stepNumber: progress.currentStepIndex + 1,
+                        cookSessionID: session.id
+                    )
+                } catch {
+                    store.present(error)
+                }
+            } label: {
+                Label(
+                    "Start \(TimerDisplayFormatter.string(duration)) timer",
+                    systemImage: "timer"
+                )
+                .frame(maxWidth: .infinity, minHeight: 56)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("Start step timer")
+        }
+    }
+
+    private var activeTimers: [CookTimer] {
+        store.timers.filter { $0.status == .running || $0.status == .paused }
     }
 
     private func moveNext() {
@@ -131,5 +191,50 @@ struct CookModeView: View {
         } catch {
             store.present(error)
         }
+    }
+}
+
+private struct TimerTile: View {
+    @EnvironmentObject private var store: AppStore
+    let timer: CookTimer
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(alignment: .leading, spacing: 10) {
+                Text(timer.stepName)
+                    .font(.headline)
+                    .lineLimit(2)
+                Text(TimerDisplayFormatter.string(timer.remaining(at: context.date)))
+                    .font(.system(.title, design: .monospaced).bold())
+                    .accessibilityIdentifier("Timer remaining \(timer.id.uuidString)")
+                HStack {
+                    if timer.status == .running {
+                        Button("Pause") { store.pauseTimer(id: timer.id) }
+                            .accessibilityIdentifier("Pause timer")
+                    } else {
+                        Button("Resume") { store.resumeTimer(id: timer.id) }
+                            .accessibilityIdentifier("Resume timer")
+                    }
+                    Button("+2") { store.extendTimer(id: timer.id, seconds: 120) }
+                        .accessibilityLabel("Extend timer by 2 minutes")
+                    Button("+5") { store.extendTimer(id: timer.id, seconds: 300) }
+                        .accessibilityLabel("Extend timer by 5 minutes")
+                    Button("Cancel", role: .destructive) { store.cancelTimer(id: timer.id) }
+                        .accessibilityIdentifier("Cancel timer")
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding()
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("Timer \(timer.id.uuidString)")
+        }
+    }
+}
+
+enum TimerDisplayFormatter {
+    static func string(_ seconds: TimeInterval) -> String {
+        let rounded = max(0, Int(seconds.rounded(.up)))
+        return String(format: "%d:%02d", rounded / 60, rounded % 60)
     }
 }

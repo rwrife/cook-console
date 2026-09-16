@@ -25,6 +25,12 @@ GRDB applies these migrations in order:
    default of false and a Boolean-only `0`/`1` check.
 3. `v3_create_cook_sessions` stores active, completed, and abandoned local cook
    sessions, including the current zero-based step and start/end timestamps.
+4. `v4_create_step_timers` stores each timer's recipe, step, and cook-session
+   identity, wall-clock deadline or paused remainder, terminal state, and local
+   started/fired/extended event log.
+5. `v5_timer_invariants_and_completion_queue` enforces valid running, paused,
+   and terminal row shapes, validates timer ownership, permits restarted timers
+   to fire again, and persists completion alerts until explicit acknowledgment.
 
 Text checks use SQLite's built-in two-argument `trim` with the explicit Unicode
 characters in Foundation's `whitespacesAndNewlines`, so every database
@@ -125,3 +131,40 @@ end timestamps locally. Only completed outcomes affect recently-cooked order.
 The recipe detail passes its target-serving ratio to `ScalingEngine` on every
 render. Controls change the target in 0.5-serving increments, clamp at 0.5,
 and reset to the recipe's stored servings.
+
+## Concurrent step timers
+
+Every timer is tied to a recipe, recipe step, and cook session. Running timers
+persist an absolute wall-clock deadline rather than a decrementing counter;
+paused timers persist their remaining duration. `TimerEngine` accepts an
+injected clock, and launch/foreground reconciliation completes deadlines that
+passed while the process was suspended or the device rebooted. Each timer is
+independent and supports start, pause, resume, extend, cancel, and completion.
+The timer row snapshots its original step UUID and display text when it starts.
+Editing or removing that recipe step later does not rewrite an active timer:
+the timer deliberately retains that historical identity and text for its
+remaining lifetime and event history.
+
+Starting, firing, and every extension are stored in `timer_events`. Completion
+reconciliation is safe to repeat and cannot create a second fired event.
+Expiry removes only the pending request so its delivered +2/+5 actions remain
+available. Cancellation, explicit acknowledgment, and restart remove pending
+and delivered notifications. Resuming or extending a running timer replaces
+its request at the new deadline. Extending at or after expiry first records the
+completion, then restarts the timer for the full extension measured from the
+action time.
+
+Cook mode offers one-tap start on timer-enabled steps and a timer wall with
+pause/resume, +2 minutes, +5 minutes, and cancel controls. When notification
+permission is denied or notification scheduling fails, timers remain fully
+functional and the app explains the on-screen fallback. Foreground polling is
+owned by the app root, queries only expired running deadlines, and does not
+reschedule unchanged requests or drive timer accuracy.
+
+Local notification content names the step and registers +2/+5-minute actions.
+An action received after process termination, or while an expired timer is
+still stored as running, reconciles expiry and restarts from the action time.
+Completing or abandoning a cook transactionally cancels all active timers in
+that session, so no live timer becomes invisible. Notification delivery
+remains subject to normal iOS scheduling policy; there is no claim of exact
+background execution.
