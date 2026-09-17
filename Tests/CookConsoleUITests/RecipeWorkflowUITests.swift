@@ -133,38 +133,44 @@ final class RecipeWorkflowUITests: XCTestCase {
     }
 
     func testConsecutiveQueuedCompletionAlertsPresentInOrder() throws {
+        // Staggered fixture: step 1 fires at 20s and step 2 fires 22s after
+        // its own start (which itself begins several seconds into the test),
+        // so completion order is strict regardless of how long the UI needs
+        // to navigate, while 20s comfortably covers navigation to step 2
+        // before the first alert interrupts.
         app.terminate()
-        app.launchArguments = ["-ui-testing-reset", "-ui-testing-short-timer-fixture"]
+        app.launchArguments = ["-ui-testing-reset", "-ui-testing-staggered-timer-fixture"]
         app.launch()
 
-        app.buttons["Short Timer Fixture"].tap()
+        app.buttons["Staggered Timer Fixture"].tap()
         app.buttons["Cook"].tap()
         let cookScrollView = app.scrollViews.firstMatch
 
-        // Start step 1's two-second timer, advance, then start step 2's
-        // six-second timer. The first completion must alert while step 2 is
-        // still running, and the second only after the first is dismissed.
         tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
         app.buttons["Next step"].tap()
         tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
 
         let firstCompletion = app.alerts["Timer Finished"]
-        XCTAssertTrue(firstCompletion.waitForExistence(timeout: 6))
+        XCTAssertTrue(firstCompletion.waitForExistence(timeout: 30))
         XCTAssertTrue(
-            firstCompletion.staticTexts["Step 1: Rest briefly. timer finished."].exists
+            firstCompletion.staticTexts["Step 1: Boil first. timer finished."].exists
         )
         firstCompletion.buttons["OK"].tap()
-
-        // The second queued completion must present only after the first
-        // alert is gone — never acknowledged silently during its dismissal.
-        let secondCompletion = app.alerts["Timer Finished"]
-        XCTAssertTrue(secondCompletion.waitForExistence(timeout: 10))
+        // Prove the first alert is gone before evaluating the second, so a
+        // lingering outgoing alert can never satisfy the next wait.
         XCTAssertTrue(
-            secondCompletion.staticTexts["Step 2: Serve promptly. timer finished."].exists
+            firstCompletion.waitForNonExistence(timeout: 10),
+            "First completion alert never dismissed.\n\(app.debugDescription)"
+        )
+
+        let secondCompletion = app.alerts["Timer Finished"]
+        XCTAssertTrue(secondCompletion.waitForExistence(timeout: 35))
+        XCTAssertTrue(
+            secondCompletion.staticTexts["Step 2: Rest second. timer finished."].exists
         )
         secondCompletion.buttons["OK"].tap()
         XCTAssertTrue(
-            secondCompletion.waitForNonExistence(timeout: 5),
+            secondCompletion.waitForNonExistence(timeout: 10),
             "Completion alert re-appeared after acknowledging the final queue entry."
         )
     }

@@ -286,10 +286,13 @@ final class AppStore: ObservableObject {
         expiryWakeUp?.cancel()
         expiryWakeUp = nil
         do {
-            guard let timerEngine, let deadline = try timerEngine.nextExpiryDate() else {
-                expiryWakeUpRetryCount = 0
-                return
-            }
+            guard let timerEngine else { return }
+            let deadline = try timerEngine.nextExpiryDate()
+            // A successful lookup proves the chain is healthy again, so the
+            // bounded retry budget resets on every success, not only when no
+            // deadlines remain.
+            expiryWakeUpRetryCount = 0
+            guard let deadline else { return }
             let delay = delayOverride ?? max(0.2, deadline.timeIntervalSinceNow + 0.2)
             expiryWakeUp = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -372,6 +375,10 @@ final class AppStore: ObservableObject {
             presentNextCompletionIfNeeded()
         } catch {
             present(error)
+            // A synchronize failure must not leave the app with no wake-up
+            // chain at all — re-arm a short retry so expiry handling is
+            // restored without waiting for a scene transition.
+            scheduleExpiryWakeUp(delayOverride: 2)
         }
     }
 

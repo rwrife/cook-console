@@ -139,12 +139,13 @@ final class AppStoreQueryTests: XCTestCase {
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [first.id, second.id])
 
         // The OK action acknowledges exactly one timer even when alert
-        // dismissal paths invoke it repeatedly; the queue only advances on
-        // the dismissal signal after the alert is gone.
+        // dismissal paths invoke it repeatedly: the presented message clears
+        // synchronously, but the second completion stays durably queued and
+        // is only presented by the dismissal signal, never consumed here.
         store.acknowledgePresentedCompletion()
         store.acknowledgePresentedCompletion()
         store.acknowledgePresentedCompletion()
-        XCTAssertEqual(store.completedTimerMessage, "Step 1: Boil. timer finished.")
+        XCTAssertNil(store.completedTimerMessage)
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [second.id])
 
         store.completionAlertDismissed()
