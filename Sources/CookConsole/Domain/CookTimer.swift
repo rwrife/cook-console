@@ -19,6 +19,7 @@ struct CookTimer: Identifiable, Equatable, Sendable {
     let deadline: Date?
     let remainingWhenPaused: TimeInterval?
     let completedAt: Date?
+    let scheduleGeneration: Int
 
     func remaining(at date: Date) -> TimeInterval {
         switch status {

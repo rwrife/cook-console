@@ -2,51 +2,58 @@
 
 ## Repair status — review blockers addressed, pending native CI
 
-The 2026-09-16 draft failed independent review on three races. This cycle
-addresses all three at the source instead of weakening any assertion:
+The 2026-09-16 draft failed independent review on three races; a follow-up
+review of the first repair pass flagged three residual weaknesses. This cycle
+closes all six with structural fixes instead of weakened assertions:
 
-1. **Double acknowledgment.** The completion alert's `isPresented` setter is
-   now a deliberate no-op. SwiftUI writes `false` to the binding whenever the
-   alert dismisses, *including* as part of the OK action's own dismissal;
-   treating that write as a second acknowledgment used to consume the next
-   queued timer before its alert was shown. Only the OK action acknowledges,
-   guarded by `presentedCompletionID`, and the next queued completion is
-   presented on a follow-up main-actor turn so a stale dismissal write can
-   neither consume nor suppress it. Regressed by
-   `testDoubleAcknowledgmentCannotConsumeTheNextQueuedCompletion`.
-2. **Stale foreground delivery.** Notification payloads now carry the exact
-   scheduled deadline. `TimerEngine.completeIfDelivered(timerID:deadline:)`
-   completes a timer only while it is still `running` with a matching current
-   deadline (±0.5s tolerance), so an obsolete in-flight delivery cannot
-   complete a timer that was paused, resumed, extended, already completed, or
-   cancelled. Regressed by `testForegroundDeliveryCompletesOnlyTheCurrentRunningDeadline`,
+1. **Double acknowledgment (original + residual).** The alert's OK action
+   acknowledges exactly one completion, guarded by `presentedCompletionID`
+   and cleared up front so repeated dismissal-path invocations cannot consume
+   a second timer. Crucially, queue advancement no longer happens inside the
+   OK action at all: SwiftUI writes `false` to the alert binding only after
+   the alert is actually gone, and that dismissal signal
+   (`completionAlertDismissed()`) advances the queue after a short delay, so
+   a new alert can never be swallowed by the previous alert's in-flight
+   dismissal window. A swipe-away without OK keeps the durable queue row for
+   later re-presentation. Regressed by
+   `testDoubleAcknowledgmentCannotConsumeTheNextQueuedCompletion` (store
+   level) and `testConsecutiveQueuedCompletionAlertsPresentInOrder` (UI
+   level, two real one-alert-then-another timers).
+2. **Stale foreground delivery (original + residual deadline-tolerance
+   gap).** A persisted `schedule_generation` counter (migration
+   `v6_timer_schedule_generation`) is bumped by every state-changing
+   transition and captured in each scheduled notification payload.
+   `TimerEngine.completeIfDelivered(timerID:scheduleGeneration:)` requires
+   exact generation equality and a passed deadline, so obsolete deliveries
+   cannot complete the current schedule even when a pause-then-resume lands
+   two deadlines within a fraction of a second. Regressed by
+   `testNearCoincidentResumeDeadlineCannotBeCompletedByObsoleteDelivery`,
+   `testForegroundDeliveryCompletesOnlyTheCurrentSchedule`,
    `testForegroundDeliveryCannotCompletePausedOrCancelledTimer`, and
    `testDelayedDeliveryAfterExpiryReconciliationCannotDoubleFire`.
-3. **Polling cancelling actionable notifications.** Expiry completion no
-   longer removes the pending request at all, so a delivery race can never
-   destroy the only actionable +2/+5 presentation; removal belongs to
-   acknowledgment, pause, cancel, restart, and session end (all already
-   covered). The app layer also replaced the permanent once-per-second root
-   `onReceive` publisher with a single cancellable deadline wake-up Task
-   (`nextExpiryDate()` → `Task.sleep` → reconcile), which was the source of
-   the observed simulator UI instability (per-second `@Published` invalidation
-   disrupted menu presentation and alert presentation; the publisher also
-   kept the app forever "non-idle" for XCTest waits). Regressed by
+3. **Polling cancelling actionable notifications (original + residual
+   error-path gap).** Expiry completion no longer removes pending requests;
+   removal belongs to acknowledgment, pause, cancel, restart, and session
+   end. The permanent once-per-second root publisher is replaced by a single
+   cancellable deadline wake-up Task (`nextExpiryDate()` → `Task.sleep` →
+   reconcile) whose chain is self-healing: any reconcile or lookup failure
+   re-arms a bounded short retry (≤5 attempts) instead of stranding timers
+   until the next scene transition. Regressed by
    `testNextExpiryDateTracksOnlyRunningDeadlines` plus the updated
    pending-removal expectations.
 
-Additional native-run fixes in this cycle:
+Additional native-run hardening in this cycle:
 
-- `reloadTimers()` only writes `@Published timers` when the value actually
-  changed, so post-dismissal reconciliation passes no longer re-invalidate an
-  alert's presenting view.
+- `reloadTimers()` only writes `@Published timers` when the value changed,
+  so post-dismissal reconciliation passes no longer re-invalidate an alert's
+  presenting view.
 - The scheduling-failure modal is suppressed while permission is denied (the
-  persistent fallback banner already explains that state), so it cannot race
+  persistent fallback banner covers that state), so it cannot collide with
   the completion alert in the same presentation window.
-- UI `tapWhenHittable` now polls `isHittable` for up to 5s before acting,
-  because a closed menu Picker exposes zero-frame option buttons that produce
-  `{{inf, inf}, {0, 0}}` activation points immediately after a tap. The strict
-  hittability gate is retained; nothing was weakened.
+- UI `tapWhenHittable` polls `isHittable` up to 5s before acting, because a
+  closed menu Picker exposes zero-frame option buttons that produce
+  `{{inf, inf}, {0, 0}}` activation points immediately after a tap. The
+  strict hittability gate is retained.
 - `TimerRepository` gained direct SQL for fetch-by-id, fetch-by-session, and
   `MIN(deadline)`, replacing per-tick full-table scans.
 
@@ -62,8 +69,9 @@ notification scheduler records replacement and removal calls. Coverage includes:
 - engine-level launch/reopen and foreground-style expiry reconciliation;
 - idempotent fired logging;
 - a durable, unacknowledged completion queue that survives relaunch;
-- deadline-matched delivery validation for paused/resumed/extended/cancelled/
-  already-completed timers and delayed delivery after reconciliation;
+- generation-exact delivery validation, including near-coincident
+  pause/resume deadlines, delayed delivery after reconciliation, and
+  paused/cancelled/extended rejection;
 - expiry ticks that preserve pending requests and never reschedule unchanged
   requests; delivered/pending removal on acknowledgment instead;
 - +2/+5 notification handling after termination and while an expired timer is
@@ -73,7 +81,13 @@ notification scheduler records replacement and removal calls. Coverage includes:
 - delayed notification-scheduling failure reporting;
 - next-expiry tracking over running timers only (wake-up scheduling);
 - transactional cancellation of active timers when their session ends; and
-- timer state-shape and recipe/step/session identity validation.
+- timer state-shape and recipe/step/session identity validation, plus the
+  v6 schema assertion for `schedule_generation`.
+
+`AppStoreQueryTests` (native target; compiles only where SwiftUI is
+importable) exercises launch/foreground completion, single-shot
+acknowledgment under repeated dismissal-path calls, and dismissal-signal
+queue advancement with two durably queued completions.
 
 Development followed focused red/green cycles. Linux validates the portable
 package with warnings as errors; it cannot type-check SwiftUI/UserNotifications

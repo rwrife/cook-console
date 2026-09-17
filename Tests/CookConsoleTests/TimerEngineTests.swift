@@ -151,7 +151,7 @@ final class TimerEngineTests: XCTestCase {
         // reconciliation already completed the timer.
         let late = try fixture.engine.completeIfDelivered(
             timerID: timer.id,
-            deadline: Date(timeIntervalSince1970: 3_130)
+            scheduleGeneration: timer.scheduleGeneration
         )
 
         XCTAssertNil(late)
@@ -161,29 +161,57 @@ final class TimerEngineTests: XCTestCase {
         )
     }
 
-    func testForegroundDeliveryCompletesOnlyTheCurrentRunningDeadline() throws {
+    func testForegroundDeliveryCompletesOnlyTheCurrentSchedule() throws {
         let fixture = try TimerFixture(now: 3_200)
         let timer = try fixture.start(stepName: "Simmer", duration: 60)
         fixture.nowBox.date = Date(timeIntervalSince1970: 3_220)
         _ = try fixture.engine.extend(timerID: timer.id, by: 120)
 
-        // An in-flight delivery for the pre-extension deadline must not
-        // complete the newly extended timer.
+        // An in-flight delivery scheduled for the pre-extension generation
+        // must not complete the newly extended timer.
         let stale = try fixture.engine.completeIfDelivered(
             timerID: timer.id,
-            deadline: Date(timeIntervalSince1970: 3_260)
+            scheduleGeneration: timer.scheduleGeneration
         )
         XCTAssertNil(stale)
         XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .running)
         XCTAssertTrue(try fixture.engine.pendingCompletions().isEmpty)
 
+        let extended = try XCTUnwrap(fixture.repository.fetchTimer(id: timer.id))
         fixture.nowBox.date = Date(timeIntervalSince1970: 3_380)
         let current = try fixture.engine.completeIfDelivered(
             timerID: timer.id,
-            deadline: Date(timeIntervalSince1970: 3_380)
+            scheduleGeneration: extended.scheduleGeneration
         )
         XCTAssertEqual(current?.status, .completed)
         XCTAssertEqual(try fixture.engine.pendingCompletions().map(\.id), [timer.id])
+    }
+
+    func testNearCoincidentResumeDeadlineCannotBeCompletedByObsoleteDelivery() throws {
+        let fixture = try TimerFixture(now: 3_250)
+        let timer = try fixture.start(stepName: "Simmer", duration: 60)
+        // Pause with roughly one second left, then resume 0.2s later: the new
+        // deadline lands within a second of the original request's deadline,
+        // which deadline comparison alone could not distinguish.
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_309.8)
+        _ = try fixture.engine.pause(timerID: timer.id)
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_310)
+        let resumed = try fixture.engine.resume(timerID: timer.id)
+        XCTAssertLessThan(
+            abs(resumed.deadline!.timeIntervalSince(
+                Date(timeIntervalSince1970: 3_310)
+            )),
+            1
+        )
+
+        // The obsolete generation-0 request firing "on time" must not
+        // complete the freshly resumed timer.
+        let stale = try fixture.engine.completeIfDelivered(
+            timerID: timer.id,
+            scheduleGeneration: timer.scheduleGeneration
+        )
+        XCTAssertNil(stale)
+        XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .running)
     }
 
     func testForegroundDeliveryCannotCompletePausedOrCancelledTimer() throws {
@@ -194,7 +222,7 @@ final class TimerEngineTests: XCTestCase {
 
         let pausedResult = try fixture.engine.completeIfDelivered(
             timerID: timer.id,
-            deadline: Date(timeIntervalSince1970: 3_360)
+            scheduleGeneration: timer.scheduleGeneration
         )
         XCTAssertNil(pausedResult)
         XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .paused)
@@ -203,7 +231,7 @@ final class TimerEngineTests: XCTestCase {
         _ = try fixture.engine.cancel(timerID: timer.id)
         let cancelledResult = try fixture.engine.completeIfDelivered(
             timerID: timer.id,
-            deadline: Date(timeIntervalSince1970: 3_380)
+            scheduleGeneration: timer.scheduleGeneration
         )
         XCTAssertNil(cancelledResult)
         XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .cancelled)

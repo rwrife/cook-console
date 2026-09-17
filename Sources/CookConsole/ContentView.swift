@@ -39,14 +39,14 @@ private struct TimerCompletionAlertModifier: ViewModifier {
     private var isPresented: Binding<Bool> {
         Binding(
             get: { store.completedTimerMessage != nil },
-            set: { _ in
-                // Deliberately ignored. SwiftUI writes `false` to this
-                // binding as part of dismissing the alert, including while
-                // the OK action runs. Treating that write as a second
-                // acknowledgment used to consume the next queued timer
-                // before its alert was ever shown. Completion is durable:
-                // only OK acknowledges it, and any undismissed completion
-                // re-presents on the next reconciliation pass.
+            set: { presented in
+                guard !presented else { return }
+                // SwiftUI writes false only when the alert has actually gone
+                // away. Treat it as the dismissal signal: the queue advances
+                // from there, never from the OK action itself, so a
+                // dismissal write can never acknowledge a second timer and a
+                // new alert never races the old alert's dismissal window.
+                store.completionAlertDismissed()
             }
         )
     }

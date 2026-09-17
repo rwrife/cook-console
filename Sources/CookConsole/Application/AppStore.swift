@@ -18,6 +18,8 @@ final class AppStore: ObservableObject {
     private var visibleCookSessionID: UUID?
     private var presentedCompletionID: UUID?
     private var expiryWakeUp: Task<Void, Never>?
+    private var expiryWakeUpRetryCount = 0
+    private var alertDismissalGraceUntil = Date.distantPast
 
     init(
         repository: RecipeRepository,
@@ -62,7 +64,8 @@ final class AppStore: ObservableObject {
                             try Ingredient(name: "Water", amount: 1, unit: .cup),
                         ],
                         steps: [
-                            try RecipeStep(instruction: "Rest briefly.", timerDuration: 1),
+                            try RecipeStep(instruction: "Rest briefly.", timerDuration: 2),
+                            try RecipeStep(instruction: "Serve promptly.", timerDuration: 6),
                         ]
                     ))
                 }
@@ -196,18 +199,22 @@ final class AppStore: ObservableObject {
             presentNextCompletionIfNeeded()
         } catch {
             present(error)
+            // Keep the wake-up chain alive even when reconciliation failed;
+            // retry on a short bounded cadence instead of strandling timers
+            // until the next scene transition.
+            scheduleExpiryWakeUp(delayOverride: 2)
         }
     }
 
     /// Acknowledges exactly one presented completion through the alert's OK
-    /// action. SwiftUI writes `false` to the alert binding whenever the alert
-    /// dismisses (including as part of the action button's own dismissal),
-    /// so the dismissal binding is deliberately *not* an acknowledgment path.
-    /// Dismissing without tapping OK therefore leaves the completion in the
-    /// durable queue to re-present later. The next queued completion is
-    /// presented on a follow-up main-actor turn, never synchronously inside
-    /// the current dismissal, so a stale dismissal write can neither consume
-    /// nor suppress a timer whose alert the user has not seen yet.
+    /// action. Guarded by `presentedCompletionID` and cleared up front, so
+    /// repeated invocations from any alert dismissal path acknowledge at most
+    /// one timer. Advancing to the next queued completion deliberately does
+    /// not happen here: SwiftUI's dismissal signal arrives via
+    /// `completionAlertDismissed()` after the alert is gone, and presenting
+    /// there (deferred past the dismissal animation) prevents both the old
+    /// double-acknowledgment race and a new alert being swallowed by the
+    /// still-in-flight dismissal window.
     func acknowledgePresentedCompletion() {
         guard let presentedCompletionID else { return }
         self.presentedCompletionID = nil
@@ -217,8 +224,26 @@ final class AppStore: ObservableObject {
         } catch {
             present(error)
         }
+    }
+
+    /// Called when SwiftUI writes `false` to the completion alert binding —
+    /// i.e. the alert has actually gone away, whether via OK or a swipe.
+    /// A swipe-away without OK keeps the durable queue row and only clears
+    /// the presentation; a later pass re-presents it. The queue is advanced
+    /// after a short delay, and presentations are suppressed during that
+    /// grace window, so a new alert never competes with the dismissal
+    /// animation of the current one — neither from this path nor from a
+    /// concurrent reconciliation pass.
+    func completionAlertDismissed() {
+        if completedTimerMessage != nil {
+            presentedCompletionID = nil
+            completedTimerMessage = nil
+        }
+        alertDismissalGraceUntil = Date().addingTimeInterval(0.4)
         Task { @MainActor [weak self] in
-            self?.presentNextCompletionIfNeeded()
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            guard !Task.isCancelled else { return }
+            self?.presentNextCompletionIfNeeded(force: true)
         }
     }
 
@@ -254,13 +279,18 @@ final class AppStore: ObservableObject {
     /// non-idle for XCTest waits and invalidated the view tree every second,
     /// which dismissed in-flight alerts and broke menu presentation in
     /// simulator UI runs. Countdown text is rendered by each tile's own
-    /// TimelineView, so nothing needs a root-level tick.
-    private func scheduleExpiryWakeUp() {
+    /// TimelineView, so nothing needs a root-level tick. The chain is
+    /// self-healing: a reconcile failure re-arms a short bounded retry so a
+    /// transient database error can never permanently strand the only wake-up.
+    private func scheduleExpiryWakeUp(delayOverride: TimeInterval? = nil) {
         expiryWakeUp?.cancel()
         expiryWakeUp = nil
         do {
-            guard let timerEngine, let deadline = try timerEngine.nextExpiryDate() else { return }
-            let delay = max(0.2, deadline.timeIntervalSinceNow + 0.2)
+            guard let timerEngine, let deadline = try timerEngine.nextExpiryDate() else {
+                expiryWakeUpRetryCount = 0
+                return
+            }
+            let delay = delayOverride ?? max(0.2, deadline.timeIntervalSinceNow + 0.2)
             expiryWakeUp = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 guard !Task.isCancelled else { return }
@@ -268,6 +298,13 @@ final class AppStore: ObservableObject {
             }
         } catch {
             present(error)
+            guard expiryWakeUpRetryCount < 5 else { return }
+            expiryWakeUpRetryCount += 1
+            expiryWakeUp = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard !Task.isCancelled else { return }
+                self?.scheduleExpiryWakeUp()
+            }
         }
     }
 
@@ -310,10 +347,10 @@ final class AppStore: ObservableObject {
                 self.present(error)
             }
         }
-        notificationService?.onForegroundDelivery = { [weak self] timerID, deliveredDeadline in
+        notificationService?.onForegroundDelivery = { [weak self] timerID, scheduleGeneration in
             guard let self, let timerEngine = self.timerEngine else { return }
             do {
-                _ = try timerEngine.completeIfDelivered(timerID: timerID, deadline: deliveredDeadline)
+                _ = try timerEngine.completeIfDelivered(timerID: timerID, scheduleGeneration: scheduleGeneration)
                 self.reloadTimers()
                 self.scheduleExpiryWakeUp()
                 self.presentNextCompletionIfNeeded()
@@ -338,8 +375,14 @@ final class AppStore: ObservableObject {
         }
     }
 
-    private func presentNextCompletionIfNeeded() {
+    private func presentNextCompletionIfNeeded(force: Bool = false) {
         guard completedTimerMessage == nil, let timerEngine else { return }
+        // While an alert dismissal animation may still be in flight, only
+        // the dismissal-driven advance may present. Reconciliation passes
+        // that fire during the window would otherwise publish the next
+        // message while UIKit is still tearing the old alert down, and the
+        // resulting presentation can be silently swallowed.
+        guard force || Date() >= alertDismissalGraceUntil else { return }
         do {
             guard let timer = try timerEngine.pendingCompletions().first else { return }
             presentedCompletionID = timer.id

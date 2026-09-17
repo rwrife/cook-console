@@ -77,7 +77,15 @@ final class RecipeRepositoryTests: XCTestCase {
             "v3_create_cook_sessions",
             "v4_create_step_timers",
             "v5_timer_invariants_and_completion_queue",
+            "v6_timer_schedule_generation",
         ])
+        let timerColumns = try database.read { db in
+            try String.fetchAll(
+                db,
+                sql: "SELECT name FROM pragma_table_info('cook_timers') ORDER BY name"
+            )
+        }
+        XCTAssertTrue(timerColumns.contains("schedule_generation"))
         XCTAssertTrue(tables.contains("recipes"))
         XCTAssertTrue(tables.contains("ingredients"))
         XCTAssertTrue(tables.contains("recipe_steps"))

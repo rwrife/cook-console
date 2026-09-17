@@ -14,6 +14,7 @@ struct TimerNotification: Equatable, Sendable {
     let timerID: UUID
     let stepName: String
     let deadline: Date
+    let scheduleGeneration: Int
 
     var actionIdentifiers: [String] {
         [Self.extendTwoActionIdentifier, Self.extendFiveActionIdentifier]

@@ -31,6 +31,8 @@ GRDB applies these migrations in order:
 5. `v5_timer_invariants_and_completion_queue` enforces valid running, paused,
    and terminal row shapes, validates timer ownership, permits restarted timers
    to fire again, and persists completion alerts until explicit acknowledgment.
+6. `v6_timer_schedule_generation` persists a per-timer notification-schedule
+   generation used to reject obsolete notification deliveries.
 
 Text checks use SQLite's built-in two-argument `trim` with the explicit Unicode
 characters in Foundation's `whitespacesAndNewlines`, so every database
@@ -153,10 +155,14 @@ destroy its only actionable +2/+5 presentation. Cancellation, explicit
 acknowledgment, and restart remove pending and delivered notifications.
 Resuming or extending a running timer replaces its request at the new
 deadline. Extending at or after expiry first records the completion, then
-restarts the timer for the full extension measured from the action time. A
-foreground notification delivery completes its timer only when the payload
-deadline matches the timer's current running deadline, so an obsolete in-flight
-delivery can never complete a newly paused, resumed, or extended timer.
+restarts the timer for the full extension measured from the action time. Each
+timer row persists a `schedule_generation` counter that every state-changing
+transition bumps; a scheduled notification payload captures that generation and
+a foreground delivery completes its timer only when the payload generation
+still equals the stored row's and the deadline has passed. Two distinct
+schedules can therefore share a near-identical deadline (pause-then-resume
+inside one second) without an obsolete delivery ever completing the current
+schedule.
 
 Cook mode offers one-tap start on timer-enabled steps and a timer wall with
 pause/resume, +2 minutes, +5 minutes, and cancel controls. When notification
@@ -166,7 +172,9 @@ single deadline wake-up owned by the app store — one Task that sleeps until th
 earliest running deadline, cancels and reschedules whenever timers change, and
 reconciles on wake — rather than a permanent once-per-second root publisher,
 which kept the view tree non-idle and disrupted presentation animations during
-simulator UI runs.
+simulator UI runs. A failed reconciliation or deadline lookup re-arms a short
+bounded retry (up to five attempts) so a transient database error cannot
+permanently strand the wake-up chain.
 
 Local notification content names the step and registers +2/+5-minute actions.
 An action received after process termination, or while an expired timer is

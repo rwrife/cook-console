@@ -187,6 +187,16 @@ enum RecipeDatabase {
                 BEGIN SELECT RAISE(ABORT, 'invalid timer identity'); END
                 """)
         }
+        migrator.registerMigration("v6_timer_schedule_generation") { db in
+            // Every timer transition that replaces or removes its scheduled
+            // notification bumps this counter. A delivered payload is valid
+            // only while its captured generation still equals the stored
+            // row's, so an obsolete request can never complete a newly
+            // resumed or extended timer even when deadlines nearly coincide.
+            try db.execute(
+                sql: "ALTER TABLE cook_timers ADD COLUMN schedule_generation INTEGER NOT NULL DEFAULT 0"
+            )
+        }
         return migrator
     }
 }

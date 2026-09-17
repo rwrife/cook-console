@@ -41,7 +41,8 @@ final class TimerEngine {
             startedAt: startedAt,
             deadline: startedAt.addingTimeInterval(duration),
             remainingWhenPaused: nil,
-            completedAt: nil
+            completedAt: nil,
+            scheduleGeneration: 0
         )
         try repository.insertStarted(timer)
         schedule(timer)
@@ -195,16 +196,21 @@ final class TimerEngine {
     }
 
     /// Completes a timer only when a delivered notification provably belongs
-    /// to the timer's current running deadline. A payload whose deadline no
-    /// longer matches means the timer was paused, resumed, extended, already
-    /// completed, or cancelled while delivery was in flight, so the obsolete
-    /// event must not change state.
+    /// to the timer's current schedule. Every persisted timer state change
+    /// bumps `scheduleGeneration`, so a payload whose captured generation no
+    /// longer matches was scheduled for an obsolete request — the timer was
+    /// paused, resumed, extended, completed, cancelled, or restarted while
+    /// delivery was in flight — and must not change state. Exact generation
+    /// equality is required: two distinct schedules can share a near-identical
+    /// deadline (pause-then-resume within a second), and deadline comparison
+    /// alone cannot distinguish them.
     @discardableResult
-    func completeIfDelivered(timerID: UUID, deadline deliveredDeadline: Date) throws -> CookTimer? {
+    func completeIfDelivered(timerID: UUID, scheduleGeneration: Int) throws -> CookTimer? {
         guard let timer = try repository.fetchTimer(id: timerID) else { return nil }
-        guard timer.status == .running, let currentDeadline = timer.deadline else { return nil }
-        guard abs(currentDeadline.timeIntervalSince(deliveredDeadline)) < 0.5 else { return nil }
-        guard now() >= deliveredDeadline.addingTimeInterval(-0.5) else { return nil }
+        guard timer.status == .running, let deadline = timer.deadline else { return nil }
+        guard timer.scheduleGeneration == scheduleGeneration else { return nil }
+        // Never let a mis-delivery complete a timer before its own deadline.
+        guard now() >= deadline else { return nil }
         return try complete(timerID: timerID)
     }
 
@@ -320,7 +326,12 @@ final class TimerEngine {
         guard notifications.authorization == .allowed, let deadline = timer.deadline else { return }
         let failureHandler = onNotificationSchedulingFailure
         notifications.schedule(
-            TimerNotification(timerID: timer.id, stepName: timer.stepName, deadline: deadline)
+            TimerNotification(
+                timerID: timer.id,
+                stepName: timer.stepName,
+                deadline: deadline,
+                scheduleGeneration: timer.scheduleGeneration
+            )
         ) { result in
             if case let .failure(message) = result {
                 failureHandler?(timer.id, message)
@@ -346,7 +357,8 @@ final class TimerEngine {
             startedAt: timer.startedAt,
             deadline: deadline,
             remainingWhenPaused: remaining,
-            completedAt: completedAt
+            completedAt: completedAt,
+            scheduleGeneration: timer.scheduleGeneration + 1
         )
     }
 }

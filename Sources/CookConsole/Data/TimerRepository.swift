@@ -33,8 +33,8 @@ final class TimerRepository {
                     INSERT INTO cook_timers
                         (id, recipe_id, step_id, cook_session_id, step_name,
                          original_duration, status, started_at, deadline,
-                         remaining_when_paused, completed_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         remaining_when_paused, completed_at, schedule_generation)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                 arguments: arguments(for: timer)
             )
@@ -58,7 +58,7 @@ final class TimerRepository {
                 sql: """
                     SELECT id, recipe_id, step_id, cook_session_id, step_name,
                            original_duration, status, started_at, deadline,
-                           remaining_when_paused, completed_at
+                           remaining_when_paused, completed_at, schedule_generation
                     FROM cook_timers ORDER BY started_at, id
                     """
             ).map(decodeTimer)
@@ -72,7 +72,7 @@ final class TimerRepository {
                 sql: """
                     SELECT id, recipe_id, step_id, cook_session_id, step_name,
                            original_duration, status, started_at, deadline,
-                           remaining_when_paused, completed_at
+                           remaining_when_paused, completed_at, schedule_generation
                     FROM cook_timers
                     WHERE cook_session_id = ? ORDER BY started_at, id
                     """,
@@ -100,7 +100,7 @@ final class TimerRepository {
                 sql: """
                     SELECT id, recipe_id, step_id, cook_session_id, step_name,
                            original_duration, status, started_at, deadline,
-                           remaining_when_paused, completed_at
+                           remaining_when_paused, completed_at, schedule_generation
                     FROM cook_timers WHERE id = ?
                     """,
                 arguments: [id.uuidString]
@@ -115,7 +115,7 @@ final class TimerRepository {
                 sql: """
                     SELECT id, recipe_id, step_id, cook_session_id, step_name,
                            original_duration, status, started_at, deadline,
-                           remaining_when_paused, completed_at
+                           remaining_when_paused, completed_at, schedule_generation
                     FROM cook_timers
                     WHERE status = 'running' AND deadline <= ?
                     ORDER BY deadline, id
@@ -130,7 +130,8 @@ final class TimerRepository {
             try db.execute(
                 sql: """
                     UPDATE cook_timers
-                    SET status = ?, deadline = ?, remaining_when_paused = ?, completed_at = ?
+                    SET status = ?, deadline = ?, remaining_when_paused = ?,
+                        completed_at = ?, schedule_generation = ?
                     WHERE id = ?
                     """,
                 arguments: [
@@ -138,6 +139,7 @@ final class TimerRepository {
                     timer.deadline,
                     timer.remainingWhenPaused,
                     timer.completedAt,
+                    timer.scheduleGeneration,
                     timer.id.uuidString,
                 ]
             )
@@ -165,7 +167,7 @@ final class TimerRepository {
                     SELECT timer.id, timer.recipe_id, timer.step_id, timer.cook_session_id,
                            timer.step_name, timer.original_duration, timer.status,
                            timer.started_at, timer.deadline, timer.remaining_when_paused,
-                           timer.completed_at
+                           timer.completed_at, timer.schedule_generation
                     FROM timer_completion_alerts AS alert
                     JOIN cook_timers AS timer ON timer.id = alert.timer_id
                     ORDER BY alert.completed_at, timer.id
@@ -189,10 +191,15 @@ final class TimerRepository {
                 sql: """
                     UPDATE cook_timers
                     SET status = ?, deadline = ?, remaining_when_paused = NULL,
-                        completed_at = NULL
+                        completed_at = NULL, schedule_generation = ?
                     WHERE id = ? AND status = 'completed'
                     """,
-                arguments: [timer.status.rawValue, timer.deadline, timer.id.uuidString]
+                arguments: [
+                    timer.status.rawValue,
+                    timer.deadline,
+                    timer.scheduleGeneration,
+                    timer.id.uuidString,
+                ]
             )
             guard db.changesCount == 1 else { throw TimerEngineError.invalidTransition }
             try insertEvent(event, into: db)
@@ -304,6 +311,7 @@ final class TimerRepository {
             timer.deadline,
             timer.remainingWhenPaused,
             timer.completedAt,
+            timer.scheduleGeneration,
         ]
     }
 
@@ -330,7 +338,8 @@ final class TimerRepository {
             startedAt: row["started_at"],
             deadline: row["deadline"],
             remainingWhenPaused: row["remaining_when_paused"],
-            completedAt: row["completed_at"]
+            completedAt: row["completed_at"],
+            scheduleGeneration: row["schedule_generation"]
         )
     }
 

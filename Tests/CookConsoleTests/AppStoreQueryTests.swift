@@ -74,9 +74,8 @@ final class AppStoreQueryTests: XCTestCase {
         XCTAssertEqual(store.completedTimerMessage, "Step 1: Steam. timer finished.")
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [launchTimer.id])
         store.acknowledgePresentedCompletion()
-        store.acknowledgePresentedCompletion()
-        await drainMainActor()
-        XCTAssertNil(store.completedTimerMessage)
+        store.completionAlertDismissed()
+        try await waitForMessage(store, toBe: nil)
         XCTAssertTrue(try engine.pendingCompletions().isEmpty)
 
         let foregroundTimer = try engine.start(
@@ -92,8 +91,8 @@ final class AppStoreQueryTests: XCTestCase {
         XCTAssertEqual(store.completedTimerMessage, "Step 1: Steam again. timer finished.")
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [foregroundTimer.id])
         store.acknowledgePresentedCompletion()
-        await drainMainActor()
-        XCTAssertNil(store.completedTimerMessage)
+        store.completionAlertDismissed()
+        try await waitForMessage(store, toBe: nil)
         XCTAssertTrue(try engine.pendingCompletions().isEmpty)
     }
 
@@ -134,30 +133,45 @@ final class AppStoreQueryTests: XCTestCase {
         clock.date = Date(timeIntervalSince1970: 2_021)
         let store = AppStore(repository: recipes, timerEngine: engine)
 
-        // Both deadlines passed while suspended; exactly one alert shows.
+        // Both deadlines passed while suspended; exactly one alert shows and
+        // both completions remain durably queued in order.
         XCTAssertEqual(store.completedTimerMessage, "Step 1: Boil. timer finished.")
+        XCTAssertEqual(try engine.pendingCompletions().map(\.id), [first.id, second.id])
 
-        // SwiftUI fires the OK action and then writes false to the dismissal
-        // binding; the store must acknowledge exactly the presented timer no
-        // matter how many times the alert dismissal paths invoke it.
+        // The OK action acknowledges exactly one timer even when alert
+        // dismissal paths invoke it repeatedly; the queue only advances on
+        // the dismissal signal after the alert is gone.
         store.acknowledgePresentedCompletion()
         store.acknowledgePresentedCompletion()
         store.acknowledgePresentedCompletion()
-        await drainMainActor()
+        XCTAssertEqual(store.completedTimerMessage, "Step 1: Boil. timer finished.")
+        XCTAssertEqual(try engine.pendingCompletions().map(\.id), [second.id])
 
-        XCTAssertEqual(store.completedTimerMessage, "Step 2: Rest. timer finished.")
+        store.completionAlertDismissed()
+        // A reconciliation racing the dismissal window must not present
+        // mid-animation; only the dismissal-driven advance may.
+        store.reconcileTimers()
+        XCTAssertNil(store.completedTimerMessage)
+        try await waitForMessage(store, toBe: "Step 2: Rest. timer finished.")
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [second.id])
 
         store.acknowledgePresentedCompletion()
-        await drainMainActor()
-        XCTAssertNil(store.completedTimerMessage)
+        store.completionAlertDismissed()
+        try await waitForMessage(store, toBe: nil)
         XCTAssertTrue(try engine.pendingCompletions().isEmpty)
-        _ = first
     }
 
-    private func drainMainActor() async {
-        // Yield long enough for the queued follow-up presentation to run.
-        for _ in 0..<10 { await Task.yield() }
+    private func waitForMessage(
+        _ store: AppStore,
+        toBe expected: String?,
+        timeout: TimeInterval = 3
+    ) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while store.completedTimerMessage != expected, Date() < deadline {
+            await Task.yield()
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertEqual(store.completedTimerMessage, expected)
     }
 }
 
