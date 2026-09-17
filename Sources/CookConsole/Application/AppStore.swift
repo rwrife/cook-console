@@ -17,6 +17,7 @@ final class AppStore: ObservableObject {
     private var librarySelectedTag: String?
     private var visibleCookSessionID: UUID?
     private var presentedCompletionID: UUID?
+    private var expiryWakeUp: Task<Void, Never>?
 
     init(
         repository: RecipeRepository,
@@ -146,12 +147,14 @@ final class AppStore: ObservableObject {
             visibleCookSessionID = nil
             timers = []
         }
+        scheduleExpiryWakeUp()
         reloadLibrary()
     }
 
     func loadTimers(cookSessionID: UUID) {
         visibleCookSessionID = cookSessionID
         reloadTimers()
+        scheduleExpiryWakeUp()
     }
 
     func startTimer(
@@ -173,6 +176,7 @@ final class AppStore: ObservableObject {
         visibleCookSessionID = cookSessionID
         notificationAuthorization = timerEngine.notificationAuthorization
         reloadTimers()
+        scheduleExpiryWakeUp()
     }
 
     func pauseTimer(id: UUID) { performTimerAction { try $0.pause(timerID: id) } }
@@ -186,24 +190,35 @@ final class AppStore: ObservableObject {
         do {
             guard let timerEngine else { return }
             _ = try timerEngine.reconcileExpiredTimers()
-            notificationAuthorization = timerEngine.notificationAuthorization
+            applyAuthorization(from: timerEngine)
             reloadTimers()
+            scheduleExpiryWakeUp()
             presentNextCompletionIfNeeded()
         } catch {
             present(error)
         }
     }
 
+    /// Acknowledges exactly one presented completion through the alert's OK
+    /// action. SwiftUI writes `false` to the alert binding whenever the alert
+    /// dismisses (including as part of the action button's own dismissal),
+    /// so the dismissal binding is deliberately *not* an acknowledgment path.
+    /// Dismissing without tapping OK therefore leaves the completion in the
+    /// durable queue to re-present later. The next queued completion is
+    /// presented on a follow-up main-actor turn, never synchronously inside
+    /// the current dismissal, so a stale dismissal write can neither consume
+    /// nor suppress a timer whose alert the user has not seen yet.
     func acknowledgePresentedCompletion() {
+        guard let presentedCompletionID else { return }
+        self.presentedCompletionID = nil
+        completedTimerMessage = nil
         do {
-            if let presentedCompletionID {
-                try timerEngine?.acknowledgeCompletion(timerID: presentedCompletionID)
-            }
-            self.presentedCompletionID = nil
-            completedTimerMessage = nil
-            presentNextCompletionIfNeeded()
+            try timerEngine?.acknowledgeCompletion(timerID: presentedCompletionID)
         } catch {
             present(error)
+        }
+        Task { @MainActor [weak self] in
+            self?.presentNextCompletionIfNeeded()
         }
     }
 
@@ -216,6 +231,7 @@ final class AppStore: ObservableObject {
             guard let timerEngine else { throw TimerEngineError.invalidTransition }
             _ = try action(timerEngine)
             reloadTimers()
+            scheduleExpiryWakeUp()
         } catch {
             present(error)
         }
@@ -224,16 +240,55 @@ final class AppStore: ObservableObject {
     private func reloadTimers() {
         do {
             guard let timerEngine, let visibleCookSessionID else { return }
-            timers = try timerEngine.timers(cookSessionID: visibleCookSessionID)
+            let next = try timerEngine.timers(cookSessionID: visibleCookSessionID)
+            if next != timers {
+                timers = next
+            }
         } catch {
             present(error)
+        }
+    }
+
+    /// Wakes the app exactly once at the earliest running deadline instead of
+    /// polling every second. A periodic root timer kept the app permanently
+    /// non-idle for XCTest waits and invalidated the view tree every second,
+    /// which dismissed in-flight alerts and broke menu presentation in
+    /// simulator UI runs. Countdown text is rendered by each tile's own
+    /// TimelineView, so nothing needs a root-level tick.
+    private func scheduleExpiryWakeUp() {
+        expiryWakeUp?.cancel()
+        expiryWakeUp = nil
+        do {
+            guard let timerEngine, let deadline = try timerEngine.nextExpiryDate() else { return }
+            let delay = max(0.2, deadline.timeIntervalSinceNow + 0.2)
+            expiryWakeUp = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                self?.reconcileTimers()
+            }
+        } catch {
+            present(error)
+        }
+    }
+
+    private func applyAuthorization(from timerEngine: TimerEngine) {
+        let state = timerEngine.notificationAuthorization
+        if state != notificationAuthorization {
+            notificationAuthorization = state
         }
     }
 
     private func configureNotificationCallbacks() {
         timerEngine?.onNotificationSchedulingFailure = { [weak self] _, message in
             Task { @MainActor in
-                self?.errorMessage = "The timer is still running, but its notification could not be scheduled: \(message) Keep Cook Console open for an on-screen alert."
+                guard let self, let timerEngine = self.timerEngine else { return }
+                // A denied permission state explains itself through the
+                // persistent fallback banner. Only surface a modal error when
+                // permission was granted and the OS still rejected the
+                // request; otherwise this alert collides with the completion
+                // alert during the same presentation window.
+                guard timerEngine.notificationAuthorization == .allowed else { return }
+                self.errorMessage = "The timer is still running, but its notification could not be scheduled: \(message) Keep Cook Console open for an on-screen alert."
             }
         }
         notificationService?.onAuthorizationChange = { [weak self] state in
@@ -249,16 +304,18 @@ final class AppStore: ObservableObject {
                     self.completedTimerMessage = nil
                 }
                 self.reloadTimers()
+                self.scheduleExpiryWakeUp()
                 self.presentNextCompletionIfNeeded()
             } catch {
                 self.present(error)
             }
         }
-        notificationService?.onForegroundDelivery = { [weak self] timerID in
+        notificationService?.onForegroundDelivery = { [weak self] timerID, deliveredDeadline in
             guard let self, let timerEngine = self.timerEngine else { return }
             do {
-                _ = try timerEngine.complete(timerID: timerID)
+                _ = try timerEngine.completeIfDelivered(timerID: timerID, deadline: deliveredDeadline)
                 self.reloadTimers()
+                self.scheduleExpiryWakeUp()
                 self.presentNextCompletionIfNeeded()
             } catch {
                 self.present(error)
@@ -274,6 +331,7 @@ final class AppStore: ObservableObject {
             try timerEngine.synchronizeNotifications()
             notificationAuthorization = timerEngine.notificationAuthorization
             reloadTimers()
+            scheduleExpiryWakeUp()
             presentNextCompletionIfNeeded()
         } catch {
             present(error)

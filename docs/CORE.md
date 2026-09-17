@@ -147,19 +147,26 @@ remaining lifetime and event history.
 
 Starting, firing, and every extension are stored in `timer_events`. Completion
 reconciliation is safe to repeat and cannot create a second fired event.
-Expiry removes only the pending request so its delivered +2/+5 actions remain
-available. Cancellation, explicit acknowledgment, and restart remove pending
-and delivered notifications. Resuming or extending a running timer replaces
-its request at the new deadline. Extending at or after expiry first records the
-completion, then restarts the timer for the full extension measured from the
-action time.
+Expiry deliberately keeps the pending request alive: polling can reach a
+deadline before the OS delivers, and removing a still-pending request would
+destroy its only actionable +2/+5 presentation. Cancellation, explicit
+acknowledgment, and restart remove pending and delivered notifications.
+Resuming or extending a running timer replaces its request at the new
+deadline. Extending at or after expiry first records the completion, then
+restarts the timer for the full extension measured from the action time. A
+foreground notification delivery completes its timer only when the payload
+deadline matches the timer's current running deadline, so an obsolete in-flight
+delivery can never complete a newly paused, resumed, or extended timer.
 
 Cook mode offers one-tap start on timer-enabled steps and a timer wall with
 pause/resume, +2 minutes, +5 minutes, and cancel controls. When notification
 permission is denied or notification scheduling fails, timers remain fully
-functional and the app explains the on-screen fallback. Foreground polling is
-owned by the app root, queries only expired running deadlines, and does not
-reschedule unchanged requests or drive timer accuracy.
+functional and the app explains the on-screen fallback. Expiry handling is a
+single deadline wake-up owned by the app store — one Task that sleeps until the
+earliest running deadline, cancels and reschedules whenever timers change, and
+reconciles on wake — rather than a permanent once-per-second root publisher,
+which kept the view tree non-idle and disrupted presentation animations during
+simulator UI runs.
 
 Local notification content names the step and registers +2/+5-minute actions.
 An action received after process termination, or while an expired timer is

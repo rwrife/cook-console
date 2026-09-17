@@ -214,7 +214,24 @@ final class RecipeWorkflowUITests: XCTestCase {
             scrollToHittable(element, in: container)
         } else {
             XCTAssertTrue(element.waitForExistence(timeout: 2))
-            XCTAssertTrue(element.isHittable)
+            // A closed SwiftUI menu Picker still exposes its option buttons in
+            // the hierarchy with zero-size frames. Existence alone therefore
+            // does not prove the menu finished presenting, and acting
+            // immediately can see `{{inf, inf}, {0, 0}}` activation points.
+            // Poll for hittability within a bounded window while keeping the
+            // strict hittability gate before any tap. The runner process is
+            // separate from the app, so this never blocks the app's main
+            // actor.
+            let deadline = Date().addingTimeInterval(5)
+            var hittable = element.isHittable
+            while !hittable && Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.25)
+                hittable = element.isHittable
+            }
+            XCTAssertTrue(
+                hittable,
+                "Element never became hittable within 5s.\n\(element.debugDescription)"
+            )
         }
         element.tap()
     }

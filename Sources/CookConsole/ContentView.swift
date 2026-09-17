@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 struct ContentView: View {
     @EnvironmentObject private var store: AppStore
@@ -9,9 +8,6 @@ struct ContentView: View {
         RecipeLibraryView()
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { store.reconcileTimers() }
-            }
-            .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-                store.reconcileTimers()
             }
             .timerCompletionAlert()
             .alert("Cook Console", isPresented: errorBinding) {
@@ -43,7 +39,15 @@ private struct TimerCompletionAlertModifier: ViewModifier {
     private var isPresented: Binding<Bool> {
         Binding(
             get: { store.completedTimerMessage != nil },
-            set: { if !$0 { store.acknowledgePresentedCompletion() } }
+            set: { _ in
+                // Deliberately ignored. SwiftUI writes `false` to this
+                // binding as part of dismissing the alert, including while
+                // the OK action runs. Treating that write as a second
+                // acknowledgment used to consume the next queued timer
+                // before its alert was ever shown. Completion is durable:
+                // only OK acknowledges it, and any undismissed completion
+                // re-presents on the next reconciliation pass.
+            }
         )
     }
 }

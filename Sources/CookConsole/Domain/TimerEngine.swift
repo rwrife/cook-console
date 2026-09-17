@@ -186,8 +186,26 @@ final class TimerEngine {
                 seconds: nil
             )
         )
-        notifications.removePending(timerID: timerID)
+        // Expiry deliberately leaves the pending request in place. Polling can
+        // reach the deadline slightly before the OS delivers, and removing a
+        // still-pending request would destroy its only actionable +2/+5
+        // delivery. Acknowledgment, pause, cancellation, restart, and session
+        // end remove pending and delivered notifications instead.
         return completed
+    }
+
+    /// Completes a timer only when a delivered notification provably belongs
+    /// to the timer's current running deadline. A payload whose deadline no
+    /// longer matches means the timer was paused, resumed, extended, already
+    /// completed, or cancelled while delivery was in flight, so the obsolete
+    /// event must not change state.
+    @discardableResult
+    func completeIfDelivered(timerID: UUID, deadline deliveredDeadline: Date) throws -> CookTimer? {
+        guard let timer = try repository.fetchTimer(id: timerID) else { return nil }
+        guard timer.status == .running, let currentDeadline = timer.deadline else { return nil }
+        guard abs(currentDeadline.timeIntervalSince(deliveredDeadline)) < 0.5 else { return nil }
+        guard now() >= deliveredDeadline.addingTimeInterval(-0.5) else { return nil }
+        return try complete(timerID: timerID)
     }
 
     @discardableResult
@@ -218,6 +236,12 @@ final class TimerEngine {
         try repository.fetchPendingCompletions()
     }
 
+    /// The earliest deadline among running timers, used by the app layer to
+    /// schedule exactly one expiry wake-up instead of polling.
+    func nextExpiryDate() throws -> Date? {
+        try repository.fetchNextRunningDeadline()
+    }
+
     func acknowledgeCompletion(timerID: UUID) throws {
         try repository.acknowledgeCompletion(timerID: timerID)
         notifications.removeAll(timerID: timerID)
@@ -232,7 +256,7 @@ final class TimerEngine {
     }
 
     func timers(cookSessionID: UUID) throws -> [CookTimer] {
-        try repository.fetchTimers().filter { $0.cookSessionID == cookSessionID }
+        try repository.fetchTimers(cookSessionID: cookSessionID)
     }
 
     @discardableResult

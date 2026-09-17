@@ -65,8 +65,47 @@ final class TimerRepository {
         }
     }
 
+    func fetchTimers(cookSessionID: UUID) throws -> [CookTimer] {
+        try database.read { db in
+            try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT id, recipe_id, step_id, cook_session_id, step_name,
+                           original_duration, status, started_at, deadline,
+                           remaining_when_paused, completed_at
+                    FROM cook_timers
+                    WHERE cook_session_id = ? ORDER BY started_at, id
+                    """,
+                arguments: [cookSessionID.uuidString]
+            ).map(decodeTimer)
+        }
+    }
+
+    func fetchNextRunningDeadline() throws -> Date? {
+        try database.read { db in
+            try Date.fetchOne(
+                db,
+                sql: """
+                    SELECT MIN(deadline) FROM cook_timers
+                    WHERE status = 'running' AND deadline IS NOT NULL
+                    """
+            )
+        }
+    }
+
     func fetchTimer(id: UUID) throws -> CookTimer? {
-        try fetchTimers().first { $0.id == id }
+        try database.read { db in
+            try Row.fetchOne(
+                db,
+                sql: """
+                    SELECT id, recipe_id, step_id, cook_session_id, step_name,
+                           original_duration, status, started_at, deadline,
+                           remaining_when_paused, completed_at
+                    FROM cook_timers WHERE id = ?
+                    """,
+                arguments: [id.uuidString]
+            ).map(decodeTimer)
+        }
     }
 
     func fetchExpiredRunning(at date: Date) throws -> [CookTimer] {

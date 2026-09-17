@@ -43,7 +43,7 @@ final class AppStoreQueryTests: XCTestCase {
         XCTAssertEqual(store.recipes.map(\.id), [matching.id])
     }
 
-    func testLaunchAndForegroundReconciliationPresentDurableCompletionsUntilAcknowledged() throws {
+    func testLaunchAndForegroundReconciliationPresentDurableCompletionsUntilAcknowledged() async throws {
         let database = try RecipeDatabase.makeInMemory()
         let recipes = RecipeRepository(database: database)
         let recipe = try Recipe(
@@ -74,6 +74,8 @@ final class AppStoreQueryTests: XCTestCase {
         XCTAssertEqual(store.completedTimerMessage, "Step 1: Steam. timer finished.")
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [launchTimer.id])
         store.acknowledgePresentedCompletion()
+        store.acknowledgePresentedCompletion()
+        await drainMainActor()
         XCTAssertNil(store.completedTimerMessage)
         XCTAssertTrue(try engine.pendingCompletions().isEmpty)
 
@@ -90,8 +92,72 @@ final class AppStoreQueryTests: XCTestCase {
         XCTAssertEqual(store.completedTimerMessage, "Step 1: Steam again. timer finished.")
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [foregroundTimer.id])
         store.acknowledgePresentedCompletion()
+        await drainMainActor()
         XCTAssertNil(store.completedTimerMessage)
         XCTAssertTrue(try engine.pendingCompletions().isEmpty)
+    }
+
+    func testDoubleAcknowledgmentCannotConsumeTheNextQueuedCompletion() async throws {
+        let database = try RecipeDatabase.makeInMemory()
+        let recipes = RecipeRepository(database: database)
+        let recipe = try Recipe(
+            title: "Twin Timers",
+            servings: 2,
+            ingredients: [try Ingredient(name: "Rice", amount: 1, unit: .cup)],
+            steps: [
+                try RecipeStep(instruction: "Boil.", timerDuration: 10),
+                try RecipeStep(instruction: "Rest.", timerDuration: 20),
+            ]
+        )
+        try recipes.create(recipe)
+        let session = try recipes.beginCook(for: recipe.id, at: Date(timeIntervalSince1970: 2_000))
+        let clock = AppStoreTestClock(2_000)
+        let engine = TimerEngine(
+            repository: TimerRepository(database: database),
+            notifications: NoopTimerNotificationScheduler(),
+            now: { [clock] in clock.date }
+        )
+        let first = try engine.start(
+            recipeID: recipe.id,
+            stepID: recipe.steps[0].id,
+            cookSessionID: session.id,
+            stepName: "Step 1: Boil.",
+            duration: 10
+        )
+        let second = try engine.start(
+            recipeID: recipe.id,
+            stepID: recipe.steps[1].id,
+            cookSessionID: session.id,
+            stepName: "Step 2: Rest.",
+            duration: 20
+        )
+        clock.date = Date(timeIntervalSince1970: 2_021)
+        let store = AppStore(repository: recipes, timerEngine: engine)
+
+        // Both deadlines passed while suspended; exactly one alert shows.
+        XCTAssertEqual(store.completedTimerMessage, "Step 1: Boil. timer finished.")
+
+        // SwiftUI fires the OK action and then writes false to the dismissal
+        // binding; the store must acknowledge exactly the presented timer no
+        // matter how many times the alert dismissal paths invoke it.
+        store.acknowledgePresentedCompletion()
+        store.acknowledgePresentedCompletion()
+        store.acknowledgePresentedCompletion()
+        await drainMainActor()
+
+        XCTAssertEqual(store.completedTimerMessage, "Step 2: Rest. timer finished.")
+        XCTAssertEqual(try engine.pendingCompletions().map(\.id), [second.id])
+
+        store.acknowledgePresentedCompletion()
+        await drainMainActor()
+        XCTAssertNil(store.completedTimerMessage)
+        XCTAssertTrue(try engine.pendingCompletions().isEmpty)
+        _ = first
+    }
+
+    private func drainMainActor() async {
+        // Yield long enough for the queued follow-up presentation to run.
+        for _ in 0..<10 { await Task.yield() }
     }
 }
 

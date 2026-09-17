@@ -8,7 +8,7 @@ final class LocalNotificationService: NSObject, TimerNotificationScheduling, UNU
     private var storedAuthorization: NotificationAuthorization = .unknown
     private var storedAuthorizationHandler: (@MainActor @Sendable (NotificationAuthorization) -> Void)?
     private var storedActionHandler: (@MainActor @Sendable (String, UUID) -> Void)?
-    private var storedForegroundHandler: (@MainActor @Sendable (UUID) -> Void)?
+    private var storedForegroundHandler: (@MainActor @Sendable (UUID, Date) -> Void)?
     private var pendingAction: (identifier: String, timerID: UUID)?
 
     var onAuthorizationChange: (@MainActor @Sendable (NotificationAuthorization) -> Void)? {
@@ -29,7 +29,7 @@ final class LocalNotificationService: NSObject, TimerNotificationScheduling, UNU
             }
         }
     }
-    var onForegroundDelivery: (@MainActor @Sendable (UUID) -> Void)? {
+    var onForegroundDelivery: (@MainActor @Sendable (UUID, Date) -> Void)? {
         get { lock.withLock { storedForegroundHandler } }
         set { lock.withLock { storedForegroundHandler = newValue } }
     }
@@ -82,7 +82,10 @@ final class LocalNotificationService: NSObject, TimerNotificationScheduling, UNU
         content.body = "Timer finished."
         content.sound = .default
         content.categoryIdentifier = TimerNotification.categoryIdentifier
-        content.userInfo = ["timerID": notification.timerID.uuidString]
+        content.userInfo = [
+            "timerID": notification.timerID.uuidString,
+            "deadline": notification.deadline.timeIntervalSince1970,
+        ]
         let interval = max(1, notification.deadline.timeIntervalSinceNow)
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
         let request = UNNotificationRequest(
@@ -114,9 +117,9 @@ final class LocalNotificationService: NSObject, TimerNotificationScheduling, UNU
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        if let timerID = timerID(from: notification.request.content.userInfo) {
+        if let payload = deliveryPayload(from: notification.request.content.userInfo) {
             let callback = onForegroundDelivery
-            await MainActor.run { callback?(timerID) }
+            await MainActor.run { callback?(payload.timerID, payload.deadline) }
         }
         return [.banner, .sound]
     }
@@ -167,6 +170,14 @@ final class LocalNotificationService: NSObject, TimerNotificationScheduling, UNU
 
     private func timerID(from userInfo: [AnyHashable: Any]) -> UUID? {
         (userInfo["timerID"] as? String).flatMap(UUID.init(uuidString:))
+    }
+
+    private func deliveryPayload(from userInfo: [AnyHashable: Any]) -> (timerID: UUID, deadline: Date)? {
+        guard let identifier = userInfo["timerID"] as? String,
+              let timerID = UUID(uuidString: identifier),
+              let deadlineValue = userInfo["deadline"] as? Double
+        else { return nil }
+        return (timerID, Date(timeIntervalSince1970: deadlineValue))
     }
 }
 #endif

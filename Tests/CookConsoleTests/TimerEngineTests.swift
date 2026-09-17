@@ -131,9 +131,95 @@ final class TimerEngineTests: XCTestCase {
             try fixture.repository.fetchEvents(timerID: timer.id).map(\.kind),
             [.started, .fired]
         )
-        XCTAssertEqual(firstReloadNotifications.pendingRemoved, [timer.id])
+        // Expiry must not remove the still-pending notification: the OS may
+        // not have delivered it yet, and removal would destroy its only
+        // actionable +2/+5 presentation.
+        XCTAssertTrue(firstReloadNotifications.pendingRemoved.isEmpty)
         XCTAssertTrue(firstReloadNotifications.allRemoved.isEmpty)
         XCTAssertEqual(try secondReload.pendingCompletions().map(\.id), [timer.id])
+        try firstReload.acknowledgeCompletion(timerID: timer.id)
+        XCTAssertEqual(firstReloadNotifications.allRemoved, [timer.id])
+    }
+
+    func testDelayedDeliveryAfterExpiryReconciliationCannotDoubleFire() throws {
+        let fixture = try TimerFixture(now: 3_100)
+        let timer = try fixture.start(stepName: "Bake", duration: 30)
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_131)
+        _ = try fixture.engine.reconcileExpiredTimers()
+
+        // The OS delivers the original request slightly late, after
+        // reconciliation already completed the timer.
+        let late = try fixture.engine.completeIfDelivered(
+            timerID: timer.id,
+            deadline: Date(timeIntervalSince1970: 3_130)
+        )
+
+        XCTAssertNil(late)
+        XCTAssertEqual(
+            try fixture.repository.fetchEvents(timerID: timer.id).map(\.kind),
+            [.started, .fired]
+        )
+    }
+
+    func testForegroundDeliveryCompletesOnlyTheCurrentRunningDeadline() throws {
+        let fixture = try TimerFixture(now: 3_200)
+        let timer = try fixture.start(stepName: "Simmer", duration: 60)
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_220)
+        _ = try fixture.engine.extend(timerID: timer.id, by: 120)
+
+        // An in-flight delivery for the pre-extension deadline must not
+        // complete the newly extended timer.
+        let stale = try fixture.engine.completeIfDelivered(
+            timerID: timer.id,
+            deadline: Date(timeIntervalSince1970: 3_260)
+        )
+        XCTAssertNil(stale)
+        XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .running)
+        XCTAssertTrue(try fixture.engine.pendingCompletions().isEmpty)
+
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_380)
+        let current = try fixture.engine.completeIfDelivered(
+            timerID: timer.id,
+            deadline: Date(timeIntervalSince1970: 3_380)
+        )
+        XCTAssertEqual(current?.status, .completed)
+        XCTAssertEqual(try fixture.engine.pendingCompletions().map(\.id), [timer.id])
+    }
+
+    func testForegroundDeliveryCannotCompletePausedOrCancelledTimer() throws {
+        let fixture = try TimerFixture(now: 3_300)
+        let timer = try fixture.start(stepName: "Rest", duration: 60)
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_320)
+        _ = try fixture.engine.pause(timerID: timer.id)
+
+        let pausedResult = try fixture.engine.completeIfDelivered(
+            timerID: timer.id,
+            deadline: Date(timeIntervalSince1970: 3_360)
+        )
+        XCTAssertNil(pausedResult)
+        XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .paused)
+
+        _ = try fixture.engine.resume(timerID: timer.id)
+        _ = try fixture.engine.cancel(timerID: timer.id)
+        let cancelledResult = try fixture.engine.completeIfDelivered(
+            timerID: timer.id,
+            deadline: Date(timeIntervalSince1970: 3_380)
+        )
+        XCTAssertNil(cancelledResult)
+        XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .cancelled)
+        XCTAssertTrue(try fixture.engine.pendingCompletions().isEmpty)
+    }
+
+    func testNextExpiryDateTracksOnlyRunningDeadlines() throws {
+        let fixture = try TimerFixture(now: 3_400)
+        XCTAssertNil(try fixture.engine.nextExpiryDate())
+        let first = try fixture.start(stepName: "Boil", duration: 90)
+        let second = try fixture.start(stepName: "Rest", duration: 30)
+        XCTAssertEqual(try fixture.engine.nextExpiryDate(), Date(timeIntervalSince1970: 3_430))
+        _ = try fixture.engine.pause(timerID: second.id)
+        XCTAssertEqual(try fixture.engine.nextExpiryDate(), first.deadline)
+        _ = try fixture.engine.cancel(timerID: first.id)
+        XCTAssertNil(try fixture.engine.nextExpiryDate())
     }
 
     func testDatabaseReopenRestoresFutureDeadlineAndForegroundReconcileCompletesIt() throws {
@@ -245,7 +331,6 @@ final class TimerEngineTests: XCTestCase {
             try fixture.repository.fetchEvents(timerID: timer.id).map(\.kind),
             [.started, .fired, .extended]
         )
-        XCTAssertEqual(fixture.notifications.pendingRemoved, [timer.id])
         XCTAssertEqual(fixture.notifications.allRemoved, [timer.id])
         XCTAssertEqual(fixture.notifications.scheduled.last?.deadline, restarted.deadline)
     }
@@ -263,7 +348,6 @@ final class TimerEngineTests: XCTestCase {
             try fixture.repository.fetchEvents(timerID: timer.id).map(\.kind),
             [.started, .fired, .extended]
         )
-        XCTAssertEqual(fixture.notifications.pendingRemoved, [timer.id])
         XCTAssertEqual(fixture.notifications.allRemoved, [timer.id])
         XCTAssertEqual(fixture.notifications.scheduled.last?.deadline, restarted.deadline)
     }
@@ -366,7 +450,10 @@ final class TimerEngineTests: XCTestCase {
             try fixture.repository.fetchEvents(timerID: timer.id).map(\.kind),
             [.started, .fired]
         )
-        XCTAssertEqual(fixture.notifications.pendingRemoved, [timer.id])
+        // Completion never removes the pending request; only acknowledgment
+        // does, preserving the actionable notification if the OS has not
+        // delivered it yet.
+        XCTAssertTrue(fixture.notifications.pendingRemoved.isEmpty)
     }
 
     func testEndingSessionAtomicallyCancelsAllActiveTimers() throws {
