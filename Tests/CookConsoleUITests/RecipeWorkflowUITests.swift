@@ -122,14 +122,14 @@ final class RecipeWorkflowUITests: XCTestCase {
         let completion = app.alerts["Timer Finished"]
         XCTAssertTrue(completion.waitForExistence(timeout: 5))
         XCTAssertTrue(completion.staticTexts["Step 1: Rest briefly. timer finished."].exists)
-        completion.buttons["OK"].tap()
+        acknowledgeCompletion(completion)
 
         tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
         app.buttons["Full recipe"].tap()
         XCTAssertTrue(app.navigationBars["Short Timer Fixture"].waitForExistence(timeout: 2))
         XCTAssertTrue(completion.waitForExistence(timeout: 5))
         XCTAssertTrue(completion.staticTexts["Step 1: Rest briefly. timer finished."].exists)
-        completion.buttons["OK"].tap()
+        acknowledgeCompletion(completion)
     }
 
     func testConsecutiveQueuedCompletionAlertsPresentInOrder() throws {
@@ -155,7 +155,7 @@ final class RecipeWorkflowUITests: XCTestCase {
         XCTAssertTrue(
             firstCompletion.staticTexts["Step 1: Boil first. timer finished."].exists
         )
-        firstCompletion.buttons["OK"].tap()
+        acknowledgeCompletion(firstCompletion)
         // Prove the first alert is gone before evaluating the second, so a
         // lingering outgoing alert can never satisfy the next wait.
         XCTAssertTrue(
@@ -168,11 +168,7 @@ final class RecipeWorkflowUITests: XCTestCase {
         XCTAssertTrue(
             secondCompletion.staticTexts["Step 2: Rest second. timer finished."].exists
         )
-        secondCompletion.buttons["OK"].tap()
-        XCTAssertTrue(
-            secondCompletion.waitForNonExistence(timeout: 10),
-            "Completion alert re-appeared after acknowledging the final queue entry."
-        )
+        acknowledgeCompletion(secondCompletion)
     }
 
     private func createRecipe(
@@ -246,6 +242,35 @@ final class RecipeWorkflowUITests: XCTestCase {
         XCTAssertTrue(
             disappeared,
             "Keyboard remained visible after Done Editing.\n\(keyboard.debugDescription)"
+        )
+    }
+
+    /// Taps the completion alert's OK button and proves the alert actually
+    /// disappears, retrying the tap while the (still-presented) alert remains
+    /// up. The app's acknowledgment is guarded and idempotent
+    /// (`presentedCompletionID` is consumed on first ack), so repeat taps
+    /// cannot acknowledge a second queue entry; the retry only compensates
+    /// for synthesized touches the simulator drops mid alert animation
+    /// (observed in run 35379410135: OK tapped at t=61s but the alert was
+    /// still presenting for the full 10s window).
+    private func acknowledgeCompletion(_ alert: XCUIElement) {
+        let ok = alert.buttons["OK"]
+        XCTAssertTrue(ok.waitForExistence(timeout: 5))
+        ok.tap()
+        var disappeared = alert.waitForNonExistence(timeout: 10)
+        var attempts = 1
+        while !disappeared && attempts < 4 {
+            attempts += 1
+            if ok.waitForExistence(timeout: 2) {
+                ok.tap()
+                disappeared = alert.waitForNonExistence(timeout: 10)
+            } else {
+                break
+            }
+        }
+        XCTAssertTrue(
+            disappeared,
+            "Completion alert never dismissed after \(attempts) OK taps.\n\(app.debugDescription)"
         )
     }
 
