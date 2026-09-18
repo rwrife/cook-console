@@ -73,11 +73,6 @@ struct RecipeLibraryView: View {
             .onAppear { reload() }
             .onChange(of: searchText) { _, _ in reload() }
             .onChange(of: selectedTag) { _, _ in reload() }
-            .alert("Cook Console", isPresented: errorBinding) {
-                Button("OK") { store.errorMessage = nil }
-            } message: {
-                Text(store.errorMessage ?? "")
-            }
         }
     }
 
@@ -86,13 +81,6 @@ struct RecipeLibraryView: View {
             return "No recipes match this search and tag filter."
         }
         return "Create your first local recipe. No account or cloud is used."
-    }
-
-    private var errorBinding: Binding<Bool> {
-        Binding(
-            get: { store.errorMessage != nil },
-            set: { if !$0 { store.errorMessage = nil } }
-        )
     }
 
     private func reload() {

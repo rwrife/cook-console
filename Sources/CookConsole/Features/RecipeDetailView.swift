@@ -79,6 +79,11 @@ struct RecipeDetailView: View {
                 }
                 .safeAreaInset(edge: .bottom) {
                     Button {
+                        // Flag the alert-routing surface at the exact moment
+                        // the cover is requested, before CookModeView's own
+                        // onAppear can run, so a completion that arrives
+                        // mid-presentation is claimed by the cover's alert.
+                        store.isCookSurfaceActive = true
                         showingCook = true
                     } label: {
                         Label("Cook", systemImage: "play.fill")

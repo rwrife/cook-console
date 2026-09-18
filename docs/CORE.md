@@ -25,6 +25,14 @@ GRDB applies these migrations in order:
    default of false and a Boolean-only `0`/`1` check.
 3. `v3_create_cook_sessions` stores active, completed, and abandoned local cook
    sessions, including the current zero-based step and start/end timestamps.
+4. `v4_create_step_timers` stores each timer's recipe, step, and cook-session
+   identity, wall-clock deadline or paused remainder, terminal state, and local
+   started/fired/extended event log.
+5. `v5_timer_invariants_and_completion_queue` enforces valid running, paused,
+   and terminal row shapes, validates timer ownership, permits restarted timers
+   to fire again, and persists completion alerts until explicit acknowledgment.
+6. `v6_timer_schedule_generation` persists a per-timer notification-schedule
+   generation used to reject obsolete notification deliveries.
 
 Text checks use SQLite's built-in two-argument `trim` with the explicit Unicode
 characters in Foundation's `whitespacesAndNewlines`, so every database
@@ -125,3 +133,53 @@ end timestamps locally. Only completed outcomes affect recently-cooked order.
 The recipe detail passes its target-serving ratio to `ScalingEngine` on every
 render. Controls change the target in 0.5-serving increments, clamp at 0.5,
 and reset to the recipe's stored servings.
+
+## Concurrent step timers
+
+Every timer is tied to a recipe, recipe step, and cook session. Running timers
+persist an absolute wall-clock deadline rather than a decrementing counter;
+paused timers persist their remaining duration. `TimerEngine` accepts an
+injected clock, and launch/foreground reconciliation completes deadlines that
+passed while the process was suspended or the device rebooted. Each timer is
+independent and supports start, pause, resume, extend, cancel, and completion.
+The timer row snapshots its original step UUID and display text when it starts.
+Editing or removing that recipe step later does not rewrite an active timer:
+the timer deliberately retains that historical identity and text for its
+remaining lifetime and event history.
+
+Starting, firing, and every extension are stored in `timer_events`. Completion
+reconciliation is safe to repeat and cannot create a second fired event.
+Expiry deliberately keeps the pending request alive: polling can reach a
+deadline before the OS delivers, and removing a still-pending request would
+destroy its only actionable +2/+5 presentation. Cancellation, explicit
+acknowledgment, and restart remove pending and delivered notifications.
+Resuming or extending a running timer replaces its request at the new
+deadline. Extending at or after expiry first records the completion, then
+restarts the timer for the full extension measured from the action time. Each
+timer row persists a `schedule_generation` counter that every state-changing
+transition bumps; a scheduled notification payload captures that generation and
+a foreground delivery completes its timer only when the payload generation
+still equals the stored row's and the deadline has passed. Two distinct
+schedules can therefore share a near-identical deadline (pause-then-resume
+inside one second) without an obsolete delivery ever completing the current
+schedule.
+
+Cook mode offers one-tap start on timer-enabled steps and a timer wall with
+pause/resume, +2 minutes, +5 minutes, and cancel controls. When notification
+permission is denied or notification scheduling fails, timers remain fully
+functional and the app explains the on-screen fallback. Expiry handling is a
+single deadline wake-up owned by the app store — one Task that sleeps until the
+earliest running deadline, cancels and reschedules whenever timers change, and
+reconciles on wake — rather than a permanent once-per-second root publisher,
+which kept the view tree non-idle and disrupted presentation animations during
+simulator UI runs. A failed reconciliation or deadline lookup re-arms a short
+bounded retry (up to five attempts) so a transient database error cannot
+permanently strand the wake-up chain.
+
+Local notification content names the step and registers +2/+5-minute actions.
+An action received after process termination, or while an expired timer is
+still stored as running, reconciles expiry and restarts from the action time.
+Completing or abandoning a cook transactionally cancels all active timers in
+that session, so no live timer becomes invisible. Notification delivery
+remains subject to normal iOS scheduling policy; there is no claim of exact
+background execution.

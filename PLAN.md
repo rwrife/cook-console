@@ -43,7 +43,7 @@ CookConsoleApp (SwiftUI, iOS 26 SDK)
 
 1. **M1 Skeleton** — Xcode project, iOS 26 SDK pin, CI build+test job, lint. *(blocks everything)*
 2. **M2 Data/domain core** — Recipe/Step/Ingredient models, GRDB store, ScalingEngine with fraction-rounding rules, unit tests. *(depends on M1)*
-3. **M3 Cook mode + timers** — step pager, TimerEngine state machine, local notifications, crash-resume from deadlines. *(depends on M2)*
+3. **M3 Cook mode + timers** — step pager, TimerEngine state machine, local notifications, crash-resume from deadlines. *(depends on M2; issue #4 timer slice complete)*
 4. **M4 Adaptive console/detail layout** — compact strip vs regular-width split, fold/unfold continuity of cook session. *(depends on M3)*
 5. **M5 Import/export/backup** — JSON/CSV export, JSON import with validation + merge, privacy doc. *(depends on M2; can parallel M3)*
 6. **M6 Release** — accessibility audit pass, TestFlight pipeline via ASC API, versioning/notes. *(depends on M3–M5)*
