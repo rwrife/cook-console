@@ -170,7 +170,7 @@ final class TimerRepository {
                            timer.completed_at, timer.schedule_generation
                     FROM timer_completion_alerts AS alert
                     JOIN cook_timers AS timer ON timer.id = alert.timer_id
-                    ORDER BY alert.completed_at, timer.id
+                    ORDER BY alert.completed_at, alert.rowid
                     """
             ).map(decodeTimer)
         }

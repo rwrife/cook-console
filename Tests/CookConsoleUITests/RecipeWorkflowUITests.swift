@@ -133,11 +133,11 @@ final class RecipeWorkflowUITests: XCTestCase {
     }
 
     func testConsecutiveQueuedCompletionAlertsPresentInOrder() throws {
-        // Staggered fixture: step 1 fires at 20s and step 2 fires 22s after
-        // its own start (which itself begins several seconds into the test),
-        // so completion order is strict regardless of how long the UI needs
-        // to navigate, while 20s comfortably covers navigation to step 2
-        // before the first alert interrupts.
+        // Staggered fixture (seeded by AppStore): step 1 fires at 20s and
+        // step 2 fires 40s after its own start (which itself begins several
+        // seconds into the test), so completion order is strict regardless of
+        // how long the UI needs to navigate, and step 2's alert can never
+        // appear inside the 10s dismissal window asserted after the first OK.
         app.terminate()
         app.launchArguments = ["-ui-testing-reset", "-ui-testing-staggered-timer-fixture"]
         app.launch()

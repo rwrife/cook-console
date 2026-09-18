@@ -107,8 +107,16 @@ struct CookModeView: View {
             }
             .onAppear(perform: begin)
         }
+        .onDisappear { store.isCookSurfaceActive = false }
         .interactiveDismissDisabled()
-        .timerCompletionAlert()
+        // Cook-mode-scoped completion alert. A root-level alert bound to the
+        // same shared state would race this presentation and *replace* the
+        // fullScreenCover — both coordinators present whenever the message is
+        // set, and a root presentation displaces the modal — visibly dumping
+        // cook mode back onto the detail page. The root copy in ContentView is
+        // gated off while `isCookSurfaceActive`, so exactly one coordinator
+        // presents at a time and the cover stays mounted.
+        .timerCompletionAlert(presentedWhile: .cookSurface)
     }
 
     private func begin() {

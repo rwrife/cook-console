@@ -9,7 +9,7 @@ struct ContentView: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { store.reconcileTimers() }
             }
-            .timerCompletionAlert()
+            .timerCompletionAlert(presentedWhile: .outsideCookSurface)
             .alert("Cook Console", isPresented: errorBinding) {
                 Button("OK") { store.errorMessage = nil }
             } message: {
@@ -25,8 +25,16 @@ struct ContentView: View {
     }
 }
 
+enum CompletionAlertSurface {
+    /// Present only while Cook Mode's cover is NOT mounted (the root alert).
+    case outsideCookSurface
+    /// Present only while Cook Mode's cover IS mounted.
+    case cookSurface
+}
+
 private struct TimerCompletionAlertModifier: ViewModifier {
     @EnvironmentObject private var store: AppStore
+    let surface: CompletionAlertSurface
 
     func body(content: Content) -> some View {
         content.alert("Timer Finished", isPresented: isPresented) {
@@ -36,11 +44,18 @@ private struct TimerCompletionAlertModifier: ViewModifier {
         }
     }
 
+    private var surfaceOwnsAlert: Bool {
+        switch surface {
+        case .outsideCookSurface: return !store.isCookSurfaceActive
+        case .cookSurface: return store.isCookSurfaceActive
+        }
+    }
+
     private var isPresented: Binding<Bool> {
         Binding(
-            get: { store.completedTimerMessage != nil },
+            get: { surfaceOwnsAlert && store.completedTimerMessage != nil },
             set: { presented in
-                guard !presented else { return }
+                guard !presented, surfaceOwnsAlert else { return }
                 // SwiftUI writes false only when the alert has actually gone
                 // away. Treat it as the dismissal signal: the queue advances
                 // from there, never from the OK action itself, so a
@@ -53,7 +68,7 @@ private struct TimerCompletionAlertModifier: ViewModifier {
 }
 
 extension View {
-    func timerCompletionAlert() -> some View {
-        modifier(TimerCompletionAlertModifier())
+    func timerCompletionAlert(presentedWhile surface: CompletionAlertSurface) -> some View {
+        modifier(TimerCompletionAlertModifier(surface: surface))
     }
 }

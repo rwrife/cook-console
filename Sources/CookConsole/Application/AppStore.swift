@@ -9,6 +9,14 @@ final class AppStore: ObservableObject {
     @Published private(set) var notificationAuthorization: NotificationAuthorization = .unknown
     @Published var completedTimerMessage: String?
     @Published var errorMessage: String?
+    /// True while Cook Mode's fullScreenCover is mounted. The completion
+    /// alert is attached at both the root and the cook surface, and exactly
+    /// this flag decides which one may present: a root-level alert presented
+    /// while the cook cover is up *replaces* the cover (SwiftUI displaces the
+    /// modal instead of layering over it), dumping the user back on the
+    /// detail page mid-cook. Gating the two copies on this flag keeps the
+    /// alert on whichever surface is actually visible.
+    @Published var isCookSurfaceActive = false
 
     private let repository: RecipeRepository
     private let timerEngine: TimerEngine?
@@ -71,9 +79,11 @@ final class AppStore: ObservableObject {
                 }
                 if ProcessInfo.processInfo.arguments.contains("-ui-testing-staggered-timer-fixture") {
                     // Step 1 expires 20s after its start (comfortably after the
-                    // UI has navigated to step 2) and step 2 expires 22s after
-                    // its own start, so the durable completion queue order is
-                    // deterministic regardless of UI navigation speed.
+                    // UI has navigated to step 2) and step 2 expires 40s after
+                    // its own start. The 20s gap keeps step 2's completion
+                    // outside the 10s "first alert must disappear" window
+                    // regardless of how long the UI needs to navigate, so the
+                    // durable queue order is deterministic.
                     try recipeRepository.create(Recipe(
                         title: "Staggered Timer Fixture",
                         servings: 1,
@@ -82,7 +92,7 @@ final class AppStore: ObservableObject {
                         ],
                         steps: [
                             try RecipeStep(instruction: "Boil first.", timerDuration: 20),
-                            try RecipeStep(instruction: "Rest second.", timerDuration: 22),
+                            try RecipeStep(instruction: "Rest second.", timerDuration: 40),
                         ]
                     ))
                 }
