@@ -69,6 +69,23 @@ final class AppStore: ObservableObject {
                         ]
                     ))
                 }
+                if ProcessInfo.processInfo.arguments.contains("-ui-testing-staggered-timer-fixture") {
+                    // Step 1 expires 20s after its start (comfortably after the
+                    // UI has navigated to step 2) and step 2 expires 22s after
+                    // its own start, so the durable completion queue order is
+                    // deterministic regardless of UI navigation speed.
+                    try recipeRepository.create(Recipe(
+                        title: "Staggered Timer Fixture",
+                        servings: 1,
+                        ingredients: [
+                            try Ingredient(name: "Water", amount: 1, unit: .cup),
+                        ],
+                        steps: [
+                            try RecipeStep(instruction: "Boil first.", timerDuration: 20),
+                            try RecipeStep(instruction: "Rest second.", timerDuration: 22),
+                        ]
+                    ))
+                }
                 let scheduler = NoopTimerNotificationScheduler()
                 return AppStore(
                     repository: recipeRepository,
@@ -196,13 +213,32 @@ final class AppStore: ObservableObject {
             applyAuthorization(from: timerEngine)
             reloadTimers()
             scheduleExpiryWakeUp()
-            presentNextCompletionIfNeeded()
+            // Present completion alerts on a following main-actor turn.
+            // Reconciliation mutates `timers` in the same frame the alert
+            // would appear (active tile vanishes as the status flips), and
+            // SwiftUI drops alert presentations that race a presenting
+            // view's own update transaction — the binding stays true while
+            // the alert never shows. A one-turn delay lets the data update
+            // commit first; the durable queue makes late presentation safe.
+            presentNextCompletionSoon()
         } catch {
             present(error)
             // Keep the wake-up chain alive even when reconciliation failed;
             // retry on a short bounded cadence instead of strandling timers
             // until the next scene transition.
             scheduleExpiryWakeUp(delayOverride: 2)
+        }
+    }
+
+    /// All queue presentation goes through a following main-actor turn so a
+    /// message change never shares an update transaction with timer/library
+    /// mutations (or the presenting view's own render). SwiftUI can drop an
+    /// alert presentation that races such a transaction, leaving the binding
+    /// stuck true with no visible alert; the durable queue makes delayed
+    /// presentation safe.
+    private func presentNextCompletionSoon() {
+        Task { @MainActor [weak self] in
+            self?.presentNextCompletionIfNeeded()
         }
     }
 
@@ -345,7 +381,7 @@ final class AppStore: ObservableObject {
                 }
                 self.reloadTimers()
                 self.scheduleExpiryWakeUp()
-                self.presentNextCompletionIfNeeded()
+                self.presentNextCompletionSoon()
             } catch {
                 self.present(error)
             }
@@ -356,7 +392,7 @@ final class AppStore: ObservableObject {
                 _ = try timerEngine.completeIfDelivered(timerID: timerID, scheduleGeneration: scheduleGeneration)
                 self.reloadTimers()
                 self.scheduleExpiryWakeUp()
-                self.presentNextCompletionIfNeeded()
+                self.presentNextCompletionSoon()
             } catch {
                 self.present(error)
             }
@@ -372,7 +408,7 @@ final class AppStore: ObservableObject {
             notificationAuthorization = timerEngine.notificationAuthorization
             reloadTimers()
             scheduleExpiryWakeUp()
-            presentNextCompletionIfNeeded()
+            presentNextCompletionSoon()
         } catch {
             present(error)
             // A synchronize failure must not leave the app with no wake-up

@@ -70,8 +70,7 @@ final class AppStoreQueryTests: XCTestCase {
         clock.date = Date(timeIntervalSince1970: 1_011)
 
         let store = AppStore(repository: recipes, timerEngine: engine)
-
-        XCTAssertEqual(store.completedTimerMessage, "Step 1: Steam. timer finished.")
+        try await waitForMessage(store, toBe: "Step 1: Steam. timer finished.")
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [launchTimer.id])
         store.acknowledgePresentedCompletion()
         store.completionAlertDismissed()
@@ -87,8 +86,7 @@ final class AppStoreQueryTests: XCTestCase {
         )
         clock.date = Date(timeIntervalSince1970: 1_022)
         store.reconcileTimers()
-
-        XCTAssertEqual(store.completedTimerMessage, "Step 1: Steam again. timer finished.")
+        try await waitForMessage(store, toBe: "Step 1: Steam again. timer finished.")
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [foregroundTimer.id])
         store.acknowledgePresentedCompletion()
         store.completionAlertDismissed()
@@ -135,7 +133,7 @@ final class AppStoreQueryTests: XCTestCase {
 
         // Both deadlines passed while suspended; exactly one alert shows and
         // both completions remain durably queued in order.
-        XCTAssertEqual(store.completedTimerMessage, "Step 1: Boil. timer finished.")
+        try await waitForMessage(store, toBe: "Step 1: Boil. timer finished.")
         XCTAssertEqual(try engine.pendingCompletions().map(\.id), [first.id, second.id])
 
         // The OK action acknowledges exactly one timer even when alert
