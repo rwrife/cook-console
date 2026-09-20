@@ -54,8 +54,22 @@ struct ConsoleSplitPane: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // The split-pane identifier rides on a dedicated Color layer, NOT
+        // on the Group above: a bare-group `.accessibilityIdentifier` never
+        // resolves in the AX tree (proven in run 6 — the iPad hierarchy
+        // showed every console element carrying the workspace id instead),
+        // and identifiers attached to ContentUnavailableView never resolve
+        // either (run 5). A Color with `.accessibilityElement()` is always
+        // an AX element, so the id resolves in every pane state (idle hint,
+        // cooking hint, wall) without shadowing child elements (clear +
+        // contain semantics leave children in the tree).
+        .background(
+            Color.clear
+                .accessibilityElement()
+                .accessibilityLabel("Console split pane")
+                .accessibilityIdentifier("Console split pane")
+        )
         .background(.fill.quaternary)
-        .accessibilityIdentifier("Console split pane")
     }
 }
 
