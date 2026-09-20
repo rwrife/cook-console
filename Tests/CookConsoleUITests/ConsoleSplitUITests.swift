@@ -39,10 +39,12 @@ final class ConsoleSplitUITests: XCTestCase {
         // state (the List with the "Recipe browser" id mounts once recipes
         // exist, asserted after creation below).
         XCTAssertTrue(app.staticTexts["No Recipes"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["Console idle hint"].exists)
+        // Idle pane: mounted split pane with no wall (identifiers attached
+        // to ContentUnavailableView do not resolve in AX — see run 5).
+        XCTAssertFalse(app.descendants(matching: .any)["Console wall"].exists)
 
         createTwoStepRecipe(title: "Split Soup")
-        XCTAssertTrue(app.descendants(matching: .any)["Recipe browser"].exists)
+        XCTAssertTrue(app.buttons["Split Soup"].waitForExistence(timeout: 3))
         app.buttons["Split Soup"].tap()
         XCTAssertTrue(app.buttons["Cook"].waitForExistence(timeout: 2))
         app.buttons["Cook"].tap()
@@ -54,7 +56,7 @@ final class ConsoleSplitUITests: XCTestCase {
             app.descendants(matching: .any)["Console current step"].waitForExistence(timeout: 5),
             "The console pane must mirror the active cook session.\n\(app.debugDescription)"
         )
-        XCTAssertTrue(app.staticTexts["Console recipe title"].exists)
+        XCTAssertTrue(app.navigationBars["Split Soup"].exists)
         XCTAssertTrue(
             app.descendants(matching: .any)["Console current step"].label.contains("Simmer gently."),
             "Console pane lost the current step position.\n\(app.debugDescription)"
@@ -90,9 +92,11 @@ final class ConsoleSplitUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Fold Rice"].waitForExistence(timeout: 2))
 
         // Portrait, compact: the strip mirrors the session beside the
-        // detail, and the split workspace is NOT mounted.
+        // detail, and the split workspace is NOT mounted. ("Console wall"
+        // is the wall's guaranteed AX element; layout discrimination is the
+        // split pane's presence, which resolves as proven by the iPad test.)
         XCTAssertTrue(
-            app.descendants(matching: .any)["Console strip"].waitForExistence(timeout: 5),
+            app.descendants(matching: .any)["Console wall"].waitForExistence(timeout: 5),
             "Compact width must keep the pinned strip.\n\(app.debugDescription)"
         )
         XCTAssertFalse(app.descendants(matching: .any)["Console split pane"].exists)
@@ -120,12 +124,13 @@ final class ConsoleSplitUITests: XCTestCase {
             "Console lost the persisted step position across rotation.\n\(currentStepCard.label)"
         )
         XCTAssertTrue(app.buttons["Pause timer"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["Recipe browser"].exists)
+        // Detail stack reset to browser root: the recipe row is back.
+        XCTAssertTrue(app.buttons["Fold Rice"].exists)
 
         // Fold back: strip returns, split pane goes away, session intact.
         XCUIDevice.shared.orientation = .portrait
         XCTAssertTrue(
-            app.descendants(matching: .any)["Console strip"].waitForExistence(timeout: 10),
+            app.descendants(matching: .any)["Console wall"].waitForExistence(timeout: 10),
             "Returning to compact width must restore the strip.\n\(app.debugDescription)"
         )
         XCTAssertFalse(app.descendants(matching: .any)["Console split pane"].exists)

@@ -17,9 +17,10 @@ when it does.
   else. Compact → `RecipeLibraryView` with the console strip pinned as a
   **top** `safeAreaInset` (bottom insets collided with the bottom-anchored
   Cook/Add buttons in hosted simulators — see runs 35513947368 and
-  35516090570). Regular → `RecipeWorkspaceView`, a `NavigationSplitView`
-  whose **leading column is `ConsoleSplitPane`** (the console wall) and
-  whose trailing column is the normal library/detail navigation.
+  35516090570). Regular → `RecipeWorkspaceView`, an explicit two-pane
+  split (`HStack`: `ConsoleSplitPane` leading + library/detail navigation
+  trailing). `NavigationSplitView` is deliberately avoided: on iPhone even
+  regular widths it presents one column at a time, hiding the library.
 - Cook Mode keeps its own inline timer wall (unchanged from #4). The root
   strip and the split pane suppress themselves while the cook cover is up,
   so shared timer-control accessibility identifiers are never duplicated

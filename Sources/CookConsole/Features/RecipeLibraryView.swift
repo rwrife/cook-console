@@ -10,22 +10,29 @@ struct RecipeLibraryView: View {
     }
 }
 
-/// Regular-width workspace: the console/detail split. The leading column
-/// is `ConsoleSplitPane` — the surface `docs/dual-screen-migration.md`
-/// names as the future iPhone Duo secondary-display binding — and the
-/// trailing column is the ordinary library/detail navigation stack, so a
-/// size-class transition preserves the recipe journey and cook session
-/// (both are durable in `AppStore`/GRDB, not in view state).
+/// Regular-width workspace: the console/detail split. The leading pane is
+/// `ConsoleSplitPane` — the surface `docs/dual-screen-migration.md` names
+/// as the future iPhone Duo secondary-display binding — and the trailing
+/// pane is the ordinary library/detail navigation stack, so a size-class
+/// transition preserves the recipe journey and cook session (both are
+/// durable in `AppStore`/GRDB, not in view state).
+///
+/// Deliberately a plain HStack, not `NavigationSplitView`: on iPhone even
+/// regular widths NavigationSplitView presents a single column at a time,
+/// which would hide the library beside the console pane (the acceptance
+/// criterion is a visible two-pane split). An explicit half-width split is
+/// deterministic in both simulators the CI exercises.
 struct RecipeWorkspaceView: View {
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             ConsoleSplitPane()
-        } detail: {
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Divider()
             NavigationStack {
                 RecipeLibraryContent()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationSplitViewStyle(.balanced)
         .accessibilityIdentifier("Console workspace")
     }
 }
