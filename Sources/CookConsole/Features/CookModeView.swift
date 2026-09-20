@@ -39,11 +39,15 @@ struct CookModeView: View {
                                     .accessibilityIdentifier("Timer notification fallback")
                                 }
 
-                                // Issue #5: the timer wall is no longer an
-                                // inline section — the same ConsoleWall the
-                                // root strip shows is now pinned as a strip
-                                // above this content via safeAreaInset, so
-                                // timers stay glanceable while steps change.
+                                if !activeTimers.isEmpty {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Timers")
+                                            .font(.title2.bold())
+                                        ForEach(activeTimers) { timer in
+                                            TimerTile(timer: timer)
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -103,9 +107,6 @@ struct CookModeView: View {
             }
             .onAppear(perform: begin)
         }
-        // #5 console seam: the wall pins above the cook content itself, so
-        // it survives rotation and stays mounted for every layout.
-        .safeAreaInset(edge: .bottom) { ConsoleStripView() }
         .onDisappear { store.isCookSurfaceActive = false }
         .interactiveDismissDisabled()
         // Cook-mode-scoped completion alert. A root-level alert bound to the
@@ -197,6 +198,44 @@ struct CookModeView: View {
             dismiss()
         } catch {
             store.present(error)
+        }
+    }
+}
+
+private struct TimerTile: View {
+    @EnvironmentObject private var store: AppStore
+    let timer: CookTimer
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(alignment: .leading, spacing: 10) {
+                Text(timer.stepName)
+                    .font(.headline)
+                    .lineLimit(2)
+                Text(TimerDisplayFormatter.string(timer.remaining(at: context.date)))
+                    .font(.system(.title, design: .monospaced).bold())
+                    .accessibilityIdentifier("Timer remaining \(timer.id.uuidString)")
+                HStack {
+                    if timer.status == .running {
+                        Button("Pause") { store.pauseTimer(id: timer.id) }
+                            .accessibilityIdentifier("Pause timer")
+                    } else {
+                        Button("Resume") { store.resumeTimer(id: timer.id) }
+                            .accessibilityIdentifier("Resume timer")
+                    }
+                    Button("+2") { store.extendTimer(id: timer.id, seconds: 120) }
+                        .accessibilityLabel("Extend timer by 2 minutes")
+                    Button("+5") { store.extendTimer(id: timer.id, seconds: 300) }
+                        .accessibilityLabel("Extend timer by 5 minutes")
+                    Button("Cancel", role: .destructive) { store.cancelTimer(id: timer.id) }
+                        .accessibilityIdentifier("Cancel timer")
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding()
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("Timer \(timer.id.uuidString)")
         }
     }
 }

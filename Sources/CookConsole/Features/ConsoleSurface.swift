@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// The timer/step wall pinned as a strip above mounted content (Cook Mode,
-/// or the root library in compact width). Renders nothing (zero inset)
-/// while no cook session is active, so idle screens keep the pre-#5
-/// layout. The wall is self-sizing with no internal scrolling, so no
-/// control can ever be clipped off-screen. Callers own layout/surface
-/// gating: the root strip only mounts in compact width with the cook cover
-/// down; Cook Mode always pins it.
+/// The console wall pinned as a strip above the root library/detail content
+/// (compact width, cook cover down). Renders nothing (zero inset) while no
+/// cook session is active, so idle screens keep the pre-#5 layout exactly.
+///
+/// Cook Mode deliberately keeps its own inline timer wall (see
+/// CookModeView): mounting this strip inside the cover changed the step
+/// pager's safe-area geometry in hosted simulators and turned taps on the
+/// pager into {-1,-1} hit points (run 35513947368 — three UI regressions,
+/// all "step never advances after Next"). One control surface per screen
+/// also keeps the timer identifiers unique.
 struct ConsoleStripView: View {
     @EnvironmentObject private var store: AppStore
 
@@ -22,9 +25,9 @@ struct ConsoleStripView: View {
 /// Regular-width console pane: the leading column of the split layout —
 /// the surface `docs/dual-screen-migration.md` names as the future iPhone
 /// Duo secondary-display binding. While Cook Mode's full-screen cover is
-/// mounted it shows a progress hint instead of the wall: the cover pins
-/// its own strip, and mounting a second copy of the same timer-control
-/// identifiers behind the cover would duplicate them in the hierarchy.
+/// mounted it shows a progress hint instead of the wall: the cover carries
+/// its own timer wall, and a second mounted copy of the same timer-control
+/// identifiers behind it would duplicate them in the hierarchy.
 struct ConsoleSplitPane: View {
     @EnvironmentObject private var store: AppStore
 
@@ -55,14 +58,13 @@ struct ConsoleSplitPane: View {
     }
 }
 
-/// Glanceable wall: the Now/Next step cards on one row, then one full-width
-/// timer row per active timer, then the session's recipe title. The wall
-/// sizes to its content (a handful of concurrent timers is the MVP bound),
-/// so every control has an on-screen hit target in both layouts. Every
-/// action routes through `AppStore`, so a timer paused from the wall
-/// behaves exactly like one paused from Cook Mode — the wall replaced Cook
-/// Mode's inline timer section outright: one control surface, no duplicate
-/// handlers or identifiers.
+/// Glanceable wall: Now/Next step cards, one full-width timer row per
+/// active timer, and the session's recipe title. The wall sizes to its
+/// content (a handful of concurrent timers is the MVP bound), so every
+/// control has an on-screen hit target in both layouts. Every action
+/// routes through `AppStore`, so a timer paused from the wall behaves
+/// exactly like one paused from Cook Mode's inline section — the handlers
+/// are literally the same store methods.
 private struct ConsoleWall: View {
     @EnvironmentObject private var store: AppStore
 
@@ -122,12 +124,12 @@ private struct ConsoleStepCard: View {
     }
 }
 
-/// Console-local timer row. Cook Mode's own inline timer section (#4) was
-/// removed in #5 — this row is the app's only timer-wall control surface —
-/// and it reuses the exact accessibility identifiers the #4 UI suite
-/// asserts on ("Pause timer", "Resume timer", "Extend timer by 2 minutes",
-/// "Cancel timer", "Timer remaining <id>", "Timer <id>") so console
-/// controls are provably equivalent to the ones they replaced.
+/// Console-local timer row. Cook Mode keeps its own inline section
+/// (#4) while its cover is up, so exactly one of the two is ever mounted;
+/// the identifiers match the #4 suite's on purpose — the controls route to
+/// the same `AppStore` methods, making the two surfaces behaviorally
+/// equivalent ("Pause timer", "Resume timer", "Extend timer by 2 minutes",
+/// "Cancel timer", "Timer remaining <id>", "Timer <id>").
 private struct ConsoleTimerTile: View {
     @EnvironmentObject private var store: AppStore
     let timer: CookTimer

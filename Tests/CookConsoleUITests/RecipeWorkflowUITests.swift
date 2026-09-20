@@ -76,19 +76,16 @@ final class RecipeWorkflowUITests: XCTestCase {
         )
         app.buttons["Timed Soup"].tap()
         app.buttons["Cook"].tap()
+        let cookScrollView = app.scrollViews.firstMatch
 
-        // #5: timer tiles live on the pinned console strip now (outside the
-        // scrollable step content), so they never need scrolling to reach.
-        XCTAssertTrue(app.descendants(matching: .any)["Console strip"].waitForExistence(timeout: 2))
-        tapWhenHittable(app.buttons["Start step timer"])
+        tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
         XCTAssertTrue(app.staticTexts["Timer notification fallback"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["Console strip"].waitForExistence(timeout: 2))
-        tapWhenHittable(app.buttons["Pause timer"])
-        tapWhenHittable(app.buttons["Resume timer"])
-        tapWhenHittable(app.buttons["Extend timer by 2 minutes"])
+        tapWhenHittable(app.buttons["Pause timer"], scrolling: cookScrollView)
+        tapWhenHittable(app.buttons["Resume timer"], scrolling: cookScrollView)
+        tapWhenHittable(app.buttons["Extend timer by 2 minutes"], scrolling: cookScrollView)
 
         app.buttons["Next step"].tap()
-        tapWhenHittable(app.buttons["Start step timer"])
+        tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
         XCTAssertEqual(app.buttons.matching(identifier: "Pause timer").count, 2)
 
         app.buttons.matching(identifier: "Cancel timer").firstMatch.tap()
