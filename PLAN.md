@@ -14,8 +14,9 @@ CookConsoleApp (SwiftUI, iOS 26 SDK)
 ├─ Feature views
 │   ├─ LibraryView    recipe list, search, tags, create/import
 │   ├─ RecipeView     full recipe, servings scaler, start cook
-│   ├─ CookModeView   step pager (one step, large text), timer slots
-│   ├─ ConsoleView    now/next + timer wall (compact strip / left pane)
+│   ├─ CookModeView   step pager (one step, large text), pinned console strip
+│   ├─ Console views  ConsoleStripView (compact strip) + ConsoleSplitPane
+│   │                 (regular-width left pane) over the shared ConsoleWall
 │   └─ HistoryView    sessions, notes, favorites, exports
 ├─ Domain layer (pure Swift, no UI/DB imports)
 │   ├─ Recipe model, Ingredient (amount+unit), Step (timerable)
@@ -27,7 +28,7 @@ CookConsoleApp (SwiftUI, iOS 26 SDK)
 ```
 
 - **State**: observable view models over the domain layer; timer ticks via a single scheduler; timer state persisted so force-quit/reboot resumes with correct remaining time (wall-clock deadlines, not tick counters).
-- **Size-class routing** is the Duo seam: `ConsoleLayout = .compactStrip | .splitView`. Today the choice comes from horizontal size class; the future fold API will drive the same enum to bind `ConsoleView` to the secondary display. No other code may assume screen topology.
+- **Size-class routing** is the Duo seam: `ConsoleLayout = .compactStrip | .splitView`. Today the choice comes from horizontal size class; the future fold API will drive the same enum to bind the console pane (`ConsoleSplitPane`) to the secondary display. No other code may assume screen topology (details: `docs/dual-screen-migration.md`).
 
 ## Technology choices
 
@@ -65,7 +66,7 @@ CookConsoleApp (SwiftUI, iOS 26 SDK)
 ## iPhone Duo migration path
 
 1. Now: adaptive two-column layout chosen by size class. `ConsoleLayout` enum is the single seam.
-2. When Apple ships fold/split-display APIs: map the API's display partition to `.splitView`, host `ConsoleView` on the secondary display, keep domain layer untouched.
+2. When Apple ships fold/split-display APIs: map the API's display partition to `.splitView`, host `ConsoleSplitPane` on the secondary display, keep domain layer untouched.
 3. Add fold/unfold continuity handling (scene phase + session snapshot) — session and timers already survive process restart, so this is a presentation concern.
 4. Re-audit hit targets/orientation for the second display geometry.
 

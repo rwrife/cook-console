@@ -3,18 +3,51 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
-        RecipeLibraryView()
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .active { store.reconcileTimers() }
+        Group {
+            switch store.consoleLayout {
+            case .compactStrip:
+                RecipeLibraryView()
+            case .splitView:
+                RecipeWorkspaceView()
             }
-            .timerCompletionAlert(presentedWhile: .outsideCookSurface)
-            .alert("Cook Console", isPresented: errorBinding) {
-                Button("OK") { store.errorMessage = nil }
-            } message: {
-                Text(store.errorMessage ?? "")
-            }
+        }
+        .onAppear(perform: syncConsoleLayout)
+        .onChange(of: horizontalSizeClass) { _, _ in syncConsoleLayout() }
+        .safeAreaInset(edge: .bottom) { rootConsoleStrip }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { store.reconcileTimers() }
+        }
+        .timerCompletionAlert(presentedWhile: .outsideCookSurface)
+        .alert("Cook Console", isPresented: errorBinding) {
+            Button("OK") { store.errorMessage = nil }
+        } message: {
+            Text(store.errorMessage ?? "")
+        }
+    }
+
+    /// The ONLY place the console layout input is derived: horizontal size
+    /// class and nothing else (nil falls back to compact, the safe default).
+    /// Code review must keep it that way — see `ConsoleLayout` and
+    /// docs/dual-screen-migration.md.
+    private func syncConsoleLayout() {
+        let input: ConsoleLayoutInput =
+            horizontalSizeClass == .regular ? .regular : .compact
+        store.applyConsoleLayout(input: input)
+    }
+
+    /// Root copy of the console strip: mounted ONLY in compact width and
+    /// only while the cook cover is down. The cook cover pins its own copy
+    /// inside CookModeView; exactly one wall with live timer controls is
+    /// ever mounted, so shared accessibility identifiers ("Pause timer", …)
+    /// are never duplicated in the hierarchy.
+    @ViewBuilder
+    private var rootConsoleStrip: some View {
+        if store.consoleLayout == .compactStrip, !store.isCookSurfaceActive {
+            ConsoleStripView()
+        }
     }
 
     private var errorBinding: Binding<Bool> {

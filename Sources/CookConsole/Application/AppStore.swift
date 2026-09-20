@@ -17,8 +17,19 @@ final class AppStore: ObservableObject {
     /// detail page mid-cook. Gating the two copies on this flag keeps the
     /// alert on whichever surface is actually visible.
     @Published var isCookSurfaceActive = false
+    /// Snapshot rendered by the persistent console surface (both layouts).
+    /// Derived purely from recipes/sessions/timers already in this store.
+    @Published private(set) var consoleSnapshot: ConsoleSnapshot = .idle
+    /// Layout seam state: written ONLY from the SwiftUI layer's horizontal
+    /// size class (ContentView's onAppear/onChange) — never from device
+    /// model or any other topology assumption.
+    @Published private(set) var consoleLayout: ConsoleLayout = .compactStrip
 
     private let repository: RecipeRepository
+    /// The cook session the console surface currently mirrors, plus the
+    /// recipe it belongs to. Set when a cook surface (re)loads its timers.
+    private var consoleSession: CookSession?
+    private var consoleRecipeID: UUID?
     private let timerEngine: TimerEngine?
     private let notificationService: LocalNotificationService?
     private var librarySearchText = ""
@@ -160,11 +171,41 @@ final class AppStore: ObservableObject {
     }
 
     func beginCook(for recipeID: UUID) throws -> CookSession {
-        try repository.beginCook(for: recipeID)
+        let session = try repository.beginCook(for: recipeID)
+        // A cook surface is about to mount for this session; adopt it as the
+        // console mirror immediately so the strip can appear without waiting
+        // for the surface's onAppear.
+        consoleSession = session
+        consoleRecipeID = recipeID
+        refreshConsoleSnapshot()
+        return session
     }
 
     func updateCookPosition(sessionID: UUID, to stepIndex: Int) throws {
         try repository.updateCookPosition(sessionID: sessionID, to: stepIndex)
+        if let consoleSession, consoleSession.id == sessionID {
+            // CookSession is a validated immutable value; replace it whole.
+            self.consoleSession = CookSession(
+                id: consoleSession.id,
+                recipeID: consoleSession.recipeID,
+                startedAt: consoleSession.startedAt,
+                endedAt: consoleSession.endedAt,
+                status: consoleSession.status,
+                currentStepIndex: stepIndex
+            )
+            refreshConsoleSnapshot()
+        }
+    }
+
+    /// Applies the horizontal-size-class-derived layout input. This is the
+    /// only writer of `consoleLayout`; keeping it a total function of
+    /// `ConsoleLayoutInput` is what makes the Duo migration a pure
+    /// source-of-input swap (docs/dual-screen-migration.md).
+    func applyConsoleLayout(input: ConsoleLayoutInput) {
+        let next = ConsoleLayout(input: input)
+        if next != consoleLayout {
+            consoleLayout = next
+        }
     }
 
     func endCook(sessionID: UUID, as status: CookSessionStatus) throws {
@@ -177,6 +218,11 @@ final class AppStore: ObservableObject {
             visibleCookSessionID = nil
             timers = []
         }
+        if consoleSession?.id == sessionID {
+            consoleSession = nil
+            consoleRecipeID = nil
+        }
+        refreshConsoleSnapshot()
         scheduleExpiryWakeUp()
         reloadLibrary()
     }
@@ -184,6 +230,13 @@ final class AppStore: ObservableObject {
     func loadTimers(cookSessionID: UUID) {
         visibleCookSessionID = cookSessionID
         reloadTimers()
+        // (Re)adopt the console mirror from the durable session row, then
+        // refresh the wall. This is also the fold/unfold re-sync path: a new
+        // cook surface instance calling loadTimers re-reads the persisted
+        // step position, so console state survives view-tree replacement.
+        consoleSession = try? repository.fetchCookSession(id: cookSessionID)
+        consoleRecipeID = consoleSession?.recipeID
+        refreshConsoleSnapshot()
         scheduleExpiryWakeUp()
     }
 
@@ -314,9 +367,26 @@ final class AppStore: ObservableObject {
             let next = try timerEngine.timers(cookSessionID: visibleCookSessionID)
             if next != timers {
                 timers = next
+                refreshConsoleSnapshot()
             }
         } catch {
             present(error)
+        }
+    }
+
+    /// Recomputes the console wall snapshot from state already held by this
+    /// store. Conditional write: the compact strip is mounted via
+    /// safeAreaInset on views that observe AppStore, so an unconditional
+    /// publish would re-render the library list on every timer tick.
+    private func refreshConsoleSnapshot() {
+        let recipe = consoleRecipeID.flatMap { id in try? repository.fetch(id: id) }
+        let snapshot = ConsoleSnapshot.snapshot(
+            recipe: recipe,
+            session: consoleSession,
+            timers: timers
+        )
+        if snapshot != consoleSnapshot {
+            consoleSnapshot = snapshot
         }
     }
 

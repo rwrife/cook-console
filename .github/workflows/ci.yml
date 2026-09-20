@@ -61,7 +61,37 @@ jobs:
             -project CookConsole.xcodeproj \
             -scheme CookConsole \
             -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -skip-testing:CookConsoleUITests/ConsoleSplitUITests \
             -resultBundlePath "$RUNNER_TEMP/CookConsoleTests.xcresult" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO
+
+      # Issue #5 layout-seam coverage needs devices that can actually
+      # produce the size classes under test: the iPhone 17 is compact in
+      # both orientations, so the split/fold tests run where a regular
+      # width exists (iPad portrait) and where rotation flips the class
+      # (iPhone 17 Pro Max landscape).
+      - name: Run split-layout UI tests (iPad A16, regular width)
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project CookConsole.xcodeproj \
+            -scheme CookConsole \
+            -destination 'platform=iOS Simulator,name=iPad (A16),OS=latest' \
+            -only-testing:CookConsoleUITests/ConsoleSplitUITests/testConsoleSplitViewHostsWorkspaceAtRegularWidth \
+            -resultBundlePath "$RUNNER_TEMP/ConsoleSplit.ipad.xcresult" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Run fold-rehearsal rotation UI test (iPhone 17 Pro Max)
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project CookConsole.xcodeproj \
+            -scheme CookConsole \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=latest' \
+            -only-testing:CookConsoleUITests/ConsoleSplitUITests/testCookSessionSurvivesRotationAcrossSizeClasses \
+            -resultBundlePath "$RUNNER_TEMP/ConsoleSplit.rotation.xcresult" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
 
@@ -71,6 +101,17 @@ jobs:
         with:
           name: cookconsole-test-results
           path: ${{ runner.temp }}/CookConsoleTests.xcresult
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload split-layout result bundles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cookconsole-split-results
+          path: |
+            ${{ runner.temp }}/ConsoleSplit.ipad.xcresult
+            ${{ runner.temp }}/ConsoleSplit.rotation.xcresult
           if-no-files-found: warn
           retention-days: 7
 
