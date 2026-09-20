@@ -35,10 +35,14 @@ final class ConsoleSplitUITests: XCTestCase {
             "Regular width must select the split layout.\n\(app.debugDescription)"
         )
         XCTAssertTrue(app.descendants(matching: .any)["Console workspace"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["Recipe browser"].exists)
+        // Fresh launch = empty library; the detail column shows its empty
+        // state (the List with the "Recipe browser" id mounts once recipes
+        // exist, asserted after creation below).
+        XCTAssertTrue(app.staticTexts["No Recipes"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["Console idle hint"].exists)
 
         createTwoStepRecipe(title: "Split Soup")
+        XCTAssertTrue(app.descendants(matching: .any)["Recipe browser"].exists)
         app.buttons["Split Soup"].tap()
         XCTAssertTrue(app.buttons["Cook"].waitForExistence(timeout: 2))
         app.buttons["Cook"].tap()
