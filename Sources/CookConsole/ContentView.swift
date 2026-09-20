@@ -16,7 +16,7 @@ struct ContentView: View {
         }
         .onAppear(perform: syncConsoleLayout)
         .onChange(of: horizontalSizeClass) { _, _ in syncConsoleLayout() }
-        .safeAreaInset(edge: .bottom) { rootConsoleStrip }
+        .safeAreaInset(edge: .top) { rootConsoleStrip }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.reconcileTimers() }
         }
@@ -39,10 +39,12 @@ struct ContentView: View {
     }
 
     /// Root copy of the console strip: mounted ONLY in compact width and
-    /// only while the cook cover is down. The cook cover pins its own copy
-    /// inside CookModeView; exactly one wall with live timer controls is
-    /// ever mounted, so shared accessibility identifiers ("Pause timer", …)
-    /// are never duplicated in the hierarchy.
+    /// only while the cook cover is down. It pins to the TOP edge on
+    /// purpose — a bottom safe-area inset competed with the bottom-anchored
+    /// Cook button and pushed its hit point to {-1,-1} (runs
+    /// 35513947368/35516090570). The cook cover keeps its own #4 inline
+    /// timer wall, so exactly one timer-control surface is ever mounted and
+    /// shared identifiers ("Pause timer", …) are never duplicated.
     @ViewBuilder
     private var rootConsoleStrip: some View {
         if store.consoleLayout == .compactStrip, !store.isCookSurfaceActive {

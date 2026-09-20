@@ -26,8 +26,9 @@ struct ConsoleStripView: View {
 /// the surface `docs/dual-screen-migration.md` names as the future iPhone
 /// Duo secondary-display binding. While Cook Mode's full-screen cover is
 /// mounted it shows a progress hint instead of the wall: the cover carries
-/// its own timer wall, and a second mounted copy of the same timer-control
-/// identifiers behind it would duplicate them in the hierarchy.
+/// its own #4 inline timer wall, and a second mounted copy of the same
+/// timer-control identifiers behind it would duplicate them in the
+/// hierarchy.
 struct ConsoleSplitPane: View {
     @EnvironmentObject private var store: AppStore
 

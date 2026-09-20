@@ -14,16 +14,16 @@ when it does.
   initialization is a total, pure function of that input.
 - `ContentView.syncConsoleLayout()` is the app's **only** writer of the
   layout input: it reads `@Environment(\.horizontalSizeClass)` and nothing
-  else. Compact → `RecipeLibraryView` (with the console strip pinned as a
-  `safeAreaInset` above cook-mode content). Regular →
-  `RecipeWorkspaceView`, a `NavigationSplitView` whose **leading column is
-  `ConsoleSplitPane`** (the console wall) and whose trailing column is the
-  normal library/detail navigation.
-- Cook Mode pins its own copy of the wall (`ConsoleStripView` via
-  `safeAreaInset`), so the timer wall is glanceable in every layout; the
-  root strip and the split pane suppress themselves while the cook cover
-  is up, so shared timer-control accessibility identifiers are never
-  duplicated in the hierarchy.
+  else. Compact → `RecipeLibraryView` with the console strip pinned as a
+  **top** `safeAreaInset` (bottom insets collided with the bottom-anchored
+  Cook/Add buttons in hosted simulators — see runs 35513947368 and
+  35516090570). Regular → `RecipeWorkspaceView`, a `NavigationSplitView`
+  whose **leading column is `ConsoleSplitPane`** (the console wall) and
+  whose trailing column is the normal library/detail navigation.
+- Cook Mode keeps its own inline timer wall (unchanged from #4). The root
+  strip and the split pane suppress themselves while the cook cover is up,
+  so shared timer-control accessibility identifiers are never duplicated
+  in the hierarchy.
 - Console state is durable, not view-local: `AppStore` mirrors the active
   `CookSession` (reloaded from the repository via `fetchCookSession(id:)`
   whenever a cook surface (re)adopts its timers), so the session survives
