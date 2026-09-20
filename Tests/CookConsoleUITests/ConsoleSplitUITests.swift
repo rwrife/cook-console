@@ -77,7 +77,10 @@ final class ConsoleSplitUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Step 1 of 2"].waitForExistence(timeout: 5))
         app.buttons["Next step"].tap()
         XCTAssertTrue(app.staticTexts["Step 2 of 2"].exists)
-        tapWhenHittable(app.buttons["Start step timer"])
+        tapWhenHittable(
+            app.buttons["Start step timer"],
+            scrolling: app.scrollViews.firstMatch
+        )
         XCTAssertTrue(app.buttons["Pause timer"].waitForExistence(timeout: 2))
         app.buttons["Full recipe"].tap()
         XCTAssertTrue(app.navigationBars["Fold Rice"].waitForExistence(timeout: 2))

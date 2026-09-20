@@ -49,6 +49,9 @@ struct RecipeLibraryContent: View {
                 } actions: {
                     Button("Create Recipe") { showingCreate = true }
                 }
+                // Covers both the empty and populated states so size-class
+                // transition tests can prove the detail column stayed mounted.
+                .accessibilityIdentifier("Recipe browser")
             } else {
                 List(store.recipes) { recipe in
                     NavigationLink(value: recipe.id) {
