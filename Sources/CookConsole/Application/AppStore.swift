@@ -179,7 +179,7 @@ final class AppStore: ObservableObject {
 
     private static func exportDirectory() throws -> URL {
         let directory = FileManager.default
-            .tempDirectory
+            .temporaryDirectory
             .appendingPathComponent("CookConsole-Exports", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
