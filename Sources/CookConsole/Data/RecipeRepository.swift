@@ -131,6 +131,24 @@ final class RecipeRepository {
         }
     }
 
+    /// Durable fetch of one cook session by id (any status). Used by the
+    /// console mirror on (re)adopt, so the wall reflects the persisted row
+    /// rather than in-memory guesses after a fold/unfold view replacement.
+    func fetchCookSession(id: UUID) throws -> CookSession? {
+        try database.read { db in
+            guard let row = try Row.fetchOne(
+                db,
+                sql: """
+                    SELECT id, recipe_id, started_at, ended_at, status, current_step
+                    FROM cook_sessions
+                    WHERE id = ?
+                    """,
+                arguments: [id.uuidString]
+            ) else { return nil }
+            return try decodeCookSession(row)
+        }
+    }
+
     func updateCookPosition(sessionID: UUID, to stepIndex: Int) throws {
         guard stepIndex >= 0 else { throw CookSessionError.invalidStep }
         try database.write { db in
