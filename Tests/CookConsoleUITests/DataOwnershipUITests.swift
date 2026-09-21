@@ -79,16 +79,27 @@ final class DataOwnershipUITests: XCTestCase {
 
     /// Hosted-simulator List rows mount lazily; probe, then scroll down,
     /// then back up, bounded, until the element realizes in the AX tree.
+    /// iOS 26 SwiftUI List bridges to UICollectionView (run 35616324431
+    /// hierarchy: the sheet's list is a CollectionView, NOT a Table), so
+    /// probe the collection view first and keep the table fallback.
     private func scrollToExists(_ element: XCUIElement) {
         if element.waitForExistence(timeout: 2) { return }
-        let list = app.tables.firstMatch
-        XCTAssertTrue(list.waitForExistence(timeout: 3), app.debugDescription)
+        let scroller: XCUIElement
+        if app.collectionViews.firstMatch.waitForExistence(timeout: 3) {
+            scroller = app.collectionViews.firstMatch
+        } else {
+            XCTAssertTrue(
+                app.tables.firstMatch.waitForExistence(timeout: 3),
+                app.debugDescription
+            )
+            scroller = app.tables.firstMatch
+        }
         for _ in 0..<6 {
-            list.swipeUp()
+            scroller.swipeUp()
             if element.exists { return }
         }
         for _ in 0..<8 {
-            list.swipeDown()
+            scroller.swipeDown()
             if element.exists { return }
         }
         XCTAssertTrue(
