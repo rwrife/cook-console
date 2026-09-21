@@ -92,11 +92,18 @@ final class ConsoleSplitUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Fold Rice"].waitForExistence(timeout: 2))
 
         // Portrait, compact: the strip mirrors the session beside the
-        // detail, and the split workspace is NOT mounted. ("Console wall"
-        // is the wall's guaranteed AX element; layout discrimination is the
-        // split pane's presence, which resolves as proven by the iPad test.)
+        // detail, and the split workspace is NOT mounted.
+        //
+        // The strip is asserted via "Console strip", NOT "Console wall":
+        // in the strip layout the wall's own identifier is shadowed by the
+        // ConsoleStripView wrapper (run 35542429287 attempt-3 hierarchy
+        // showed `Other ... identifier: 'Console strip', label: 'Console'`
+        // with the wall's children — 'Console current step', 'Pause timer'
+        // — carrying their own ids inside it). The wall's identifier only
+        // resolves in the split pane, where the pane id rides a dedicated
+        // Color layer instead of an outer container modifier.
         XCTAssertTrue(
-            app.descendants(matching: .any)["Console wall"].waitForExistence(timeout: 5),
+            app.descendants(matching: .any)["Console strip"].waitForExistence(timeout: 5),
             "Compact width must keep the pinned strip.\n\(app.debugDescription)"
         )
         XCTAssertFalse(app.descendants(matching: .any)["Console split pane"].exists)
@@ -128,9 +135,11 @@ final class ConsoleSplitUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Fold Rice"].exists)
 
         // Fold back: strip returns, split pane goes away, session intact.
+        // Same strip-identifier rule as the first compact assertion above:
+        // the wrapper's "Console strip" id shadows the wall's own id.
         XCUIDevice.shared.orientation = .portrait
         XCTAssertTrue(
-            app.descendants(matching: .any)["Console wall"].waitForExistence(timeout: 10),
+            app.descendants(matching: .any)["Console strip"].waitForExistence(timeout: 10),
             "Returning to compact width must restore the strip.\n\(app.debugDescription)"
         )
         XCTAssertFalse(app.descendants(matching: .any)["Console split pane"].exists)
