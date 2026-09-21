@@ -45,6 +45,7 @@ struct RecipeLibraryContent: View {
     @State private var searchText = ""
     @State private var selectedTag: String?
     @State private var showingCreate = false
+    @State private var showingYourData = false
 
     var body: some View {
         Group {
@@ -94,6 +95,14 @@ struct RecipeLibraryContent: View {
                 }
                 .accessibilityLabel("Filter by tag")
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingYourData = true
+                } label: {
+                    Label("Your data", systemImage: "shippingbox")
+                }
+                .accessibilityIdentifier("Your data")
+            }
         }
         .safeAreaInset(edge: .bottom) {
             Button("Add Recipe", systemImage: "plus") {
@@ -111,6 +120,11 @@ struct RecipeLibraryContent: View {
         .sheet(isPresented: $showingCreate) {
             NavigationStack {
                 RecipeEditorView(recipe: nil)
+            }
+        }
+        .sheet(isPresented: $showingYourData) {
+            NavigationStack {
+                YourDataView()
             }
         }
         .onAppear { reload() }

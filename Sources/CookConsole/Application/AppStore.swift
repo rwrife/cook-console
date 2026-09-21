@@ -136,6 +136,62 @@ final class AppStore: ObservableObject {
         reloadLibrary()
     }
 
+    // MARK: - Data ownership (issue #6)
+
+    private lazy var dataTransfer = DataTransferService(database: repository.database)
+
+    /// Writes a versioned JSON backup into the app's temporary Exports
+    /// directory and returns it for the share sheet. Local file write only.
+    func exportedJSONBackupURL() throws -> URL {
+        let directory = try Self.exportDirectory()
+        let stamp = Self.exportStampFormatter.string(from: Date())
+        let url = directory.appendingPathComponent("CookConsole-backup-\(stamp).json")
+        try dataTransfer.writeJSONBackup(to: url)
+        return url
+    }
+
+    /// Writes a cook-history CSV into the app's temporary Exports directory
+    /// and returns it for the share sheet. Local file write only.
+    func exportedHistoryCSVURL() throws -> URL {
+        let directory = try Self.exportDirectory()
+        let stamp = Self.exportStampFormatter.string(from: Date())
+        let url = directory.appendingPathComponent("CookConsole-history-\(stamp).csv")
+        try dataTransfer.writeHistoryCSV(to: url)
+        return url
+    }
+
+    /// Validates and merges one JSON backup file (all-or-nothing) and shows
+    /// the user-visible conflict summary. Throws the per-item validation
+    /// error to the caller without touching the store on failure.
+    @discardableResult
+    func importJSONBackup(from url: URL) throws -> JSONImportOutcome {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        let document = try dataTransfer.validateDocument(at: url)
+        let outcome = try dataTransfer.applyValidated(document)
+        reloadLibrary()
+        importSummary = outcome.summaryText
+        return outcome
+    }
+
+    /// Last applied import summary, shown on the "Your data" screen.
+    @Published var importSummary: String?
+
+    private static func exportDirectory() throws -> URL {
+        let directory = FileManager.default
+            .tempDirectory
+            .appendingPathComponent("CookConsole-Exports", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    private static let exportStampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter
+    }()
+
     private func reloadLibrary() {
         do {
             recipes = try repository.fetchLibrary(

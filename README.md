@@ -63,7 +63,7 @@ The project is an **iPhone Duo dual-screen design target**: on the dual-screen d
 - **Notifications** (optional): local timers only; denied or failed scheduling
   falls back to app-level on-screen alerts while Cook Console remains open.
 - No camera, microphone, contacts, or location permissions. Photo attachment for finished-dish photos (optional) uses the photo picker with limited access and stores copies in app storage.
-- **Data ownership**: one-tap JSON (recipes + history) and CSV (history) export to the Files app; import restores from the same files. Deleting the app deletes all data.
+- **Data ownership**: the in-app **Your data** screen offers one-tap JSON backup export (versioned schema: recipes + cook sessions + timer logs, with export date and app version), CSV cook-history export, and validated JSON import. Imports land in the system share sheet / Files (no network is ever used); import validates schema and cross-references first and applies everything inside one transaction (a rejected file changes nothing), and merges by stable item IDs — existing recipes are kept or updated, never duplicated. The same screen states the on-device storage, zero-network, optional-permissions, and delete-app-deletes-everything semantics. The CI zero-network grep gate (`privacy-gate` job) keeps the no-network claim enforceable.
 
 ## iPhone Duo / build shape
 

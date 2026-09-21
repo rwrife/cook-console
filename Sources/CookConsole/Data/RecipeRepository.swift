@@ -16,7 +16,9 @@ enum RecipeRepositoryError: Error, Equatable, LocalizedError, Sendable {
 }
 
 final class RecipeRepository {
-    private let database: DatabaseQueue
+    /// Exposed for `DataTransferService` (issue #6 backup/restore) — all
+    /// access stays local (Foundation + GRDB, zero network).
+    let database: DatabaseQueue
 
     init(database: DatabaseQueue) {
         self.database = database
