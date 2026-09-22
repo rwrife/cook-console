@@ -8,15 +8,15 @@ import UIKit
 /// disables system haptics, prepare()/impactOccurred() become no-ops, so
 /// the app never needs its own toggle.
 ///
-/// The fire path deliberately uses `.notificationSuccess` (three crisp
-/// pulses) rather than `.messageSuccess`: a notification-style pattern is
-/// the established tactile language for "something finished while you
+/// The fire path deliberately uses `notificationOccurred(.success)` (three
+/// crisp pulses) rather than `.messageSuccess`: a notification-style pattern
+/// is the established tactile language for "something finished while you
 /// weren't looking" and stays distinct from the light tap used for
 /// navigation.
 enum CookHaptics {
     /// A timer finished (the completion alert's arrival).
     static func timerFinished() {
-        UINotificationFeedbackGenerator().notificationSuccess()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
     /// The cook advanced to a new step (light, directional).
