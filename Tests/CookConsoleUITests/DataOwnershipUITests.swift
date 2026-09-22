@@ -51,7 +51,7 @@ final class DataOwnershipUITests: XCTestCase {
         // the navigation bar (run 35619636791: button frame y=31.3 under a
         // nav bar starting at y=78 — the tap synthesized onto dead space
         // and the "Export ready" alert never presented).
-        scrollUntilHittable(app.buttons["Export JSON backup"])
+        scrollUntilVisible(app.buttons["Export JSON backup"])
         app.buttons["Export JSON backup"].tap()
         XCTAssertTrue(
             app.alerts["Export ready"].waitForExistence(timeout: 10),
@@ -64,7 +64,7 @@ final class DataOwnershipUITests: XCTestCase {
         )
 
         // CSV history export the same way (same hittable-scroll discipline).
-        scrollUntilHittable(app.buttons["Export CSV history"])
+        scrollUntilVisible(app.buttons["Export CSV history"])
         app.buttons["Export CSV history"].tap()
         XCTAssertTrue(
             app.alerts["Export ready"].waitForExistence(timeout: 10),
@@ -83,18 +83,27 @@ final class DataOwnershipUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Import JSON backup"].exists)
     }
 
-    /// Scroll the sheet's list until the element is not only mounted in
-    /// the AX tree but actually hittable. Existence alone is not enough:
-    /// a row that scrolled partially under the navigation bar stays
-    /// mounted with a clipped frame, `tap()` synthesizes onto dead space,
-    /// and the resulting failure looks like "the button's action never
-    /// ran" (run 35619636791). Direction: swipeDown first (the export
-    /// buttons live ABOVE the privacy section the earlier sweeps parked
-    /// at), then swipeUp, bounded.
-    /// iOS 26 List bridges to UICollectionView — probe collectionViews
-    /// first, keep the table fallback.
-    private func scrollUntilHittable(_ element: XCUIElement) {
-        if element.waitForExistence(timeout: 2), element.isHittable { return }
+    /// Scroll the sheet's list until the element's AX frame sits fully
+    /// BELOW the sheet's navigation bar. Two weaker gates failed on the
+    /// hosted runner:
+    /// - existence (run 35619636791): after the privacy sweeps the export
+    ///   cell stays mounted in the CollectionView AX tree with its frame
+    ///   clipped above the scroll top, the tap synthesizes onto the nav
+    ///   bar / status-bar strip over it, and 'Export ready' never presents.
+    /// - isHittable (run 35754199760): XCTest reported the RAW AX frame
+    ///   ({{16.0, 31.3} …} under a CollectionView starting at y=62, behind
+    ///   a sheet nav bar spanning y=78…132) as hittable; the gate never
+    ///   saw the clip and the tap again landed on dead space.
+    /// Frame-vs-navbar geometry is the only gate that sees the clip: a
+    /// center tap below the nav bar's bottom edge always lands on the row.
+    /// Direction: swipeDown — the export buttons live ABOVE the privacy
+    /// section the earlier sweeps parked at. iOS 26 List bridges to
+    /// UICollectionView: probe collectionViews first, table fallback.
+    private func scrollUntilVisible(_ element: XCUIElement) {
+        XCTAssertTrue(
+            element.waitForExistence(timeout: 5),
+            app.debugDescription
+        )
         let scroller: XCUIElement
         if app.collectionViews.firstMatch.waitForExistence(timeout: 3) {
             scroller = app.collectionViews.firstMatch
@@ -105,17 +114,20 @@ final class DataOwnershipUITests: XCTestCase {
             )
             scroller = app.tables.firstMatch
         }
-        for _ in 0..<8 {
-            if element.isHittable { return }
-            scroller.swipeDown()
+        // The presented sheet's nav bar is an opaque touch-capturing strip:
+        // tapping a row whose center is under it is a dead tap.
+        var safeTop = scroller.frame.minY
+        let sheetBar = app.navigationBars["Your Data"]
+        if sheetBar.exists {
+            safeTop = max(safeTop, sheetBar.frame.maxY)
         }
         for _ in 0..<12 {
-            if element.isHittable { return }
-            scroller.swipeUp()
+            if element.exists, element.frame.midY >= safeTop { return }
+            scroller.swipeDown()
         }
         XCTAssertTrue(
-            element.isHittable,
-            "Element never became hittable after bounded bidirectional scrolling.\n\n\(app.debugDescription)"
+            element.exists && element.frame.midY >= safeTop,
+            "Element center never moved below the sheet nav bar (safeTop=\(safeTop)).\n\n\(app.debugDescription)"
         )
     }
 
