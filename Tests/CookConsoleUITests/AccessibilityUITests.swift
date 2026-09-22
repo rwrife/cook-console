@@ -151,17 +151,40 @@ final class AccessibilityUITests: XCTestCase {
         )
         attachScreenshot(named: "cook-ax-xxxl-entry")
 
-        // The start-timer control lives in the scrollable column; it must
-        // be reachable by scrolling, and the bottom pager stays mounted.
+        // The start-timer control lives in the scrollable column; at XXXL
+        // it may start below the fold — scroll to it, then prove the hit
+        // target is real. The bottom-pinned pager must stay mounted beside
+        // the scrolled column.
         let start = app.buttons["Start step timer"]
         XCTAssertTrue(
             start.waitForExistence(timeout: 10),
-            "Start step timer unreachable at AX XXXL.\n\(app.debugDescription)"
+            "Start step timer never mounted at AX XXXL.\n\(app.debugDescription)"
         )
-        XCTAssertTrue(start.isHittable)
+        scrollUntilHittable(start)
         XCTAssertTrue(app.buttons["Next step"].isHittable,
                       "The bottom pager must stay reachable at AX XXXL.")
         attachScreenshot(named: "cook-ax-xxxl-controls")
+    }
+
+    /// Bounded scroll-until-hittable for the cook-mode ScrollView (iOS 26
+    /// List bridges to CollectionView; the cook column is a ScrollView).
+    private func scrollUntilHittable(_ element: XCUIElement) {
+        if element.isHittable { return }
+        let scroller: XCUIElement
+        if app.scrollViews.firstMatch.waitForExistence(timeout: 3) {
+            scroller = app.scrollViews.firstMatch
+        } else if app.collectionViews.firstMatch.waitForExistence(timeout: 2) {
+            scroller = app.collectionViews.firstMatch
+        } else {
+            scroller = app.tables.firstMatch
+            XCTAssertTrue(scroller.waitForExistence(timeout: 3), app.debugDescription)
+        }
+        for _ in 0..<10 {
+            if element.isHittable { return }
+            scroller.swipeUp()
+        }
+        XCTAssertTrue(element.isHittable,
+                      "Element never became hittable after bounded scrolling.\n\(app.debugDescription)")
     }
 
     private func attachScreenshot(named: String) {
