@@ -45,7 +45,13 @@ final class DataOwnershipUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Import summary"].exists)
 
         // One-tap JSON backup: write, confirm, and a share item appears.
-        scrollToExists(app.buttons["Export JSON backup"])
+        // Hittable scroll, not just existence: after the privacy-statement
+        // sweeps the sheet sits at the bottom and the export cell stays
+        // mounted in the CollectionView AX tree with a frame clipped under
+        // the navigation bar (run 35619636791: button frame y=31.3 under a
+        // nav bar starting at y=78 — the tap synthesized onto dead space
+        // and the "Export ready" alert never presented).
+        scrollUntilHittable(app.buttons["Export JSON backup"])
         app.buttons["Export JSON backup"].tap()
         XCTAssertTrue(
             app.alerts["Export ready"].waitForExistence(timeout: 10),
@@ -57,8 +63,8 @@ final class DataOwnershipUITests: XCTestCase {
             app.debugDescription
         )
 
-        // CSV history export the same way.
-        scrollToExists(app.buttons["Export CSV history"])
+        // CSV history export the same way (same hittable-scroll discipline).
+        scrollUntilHittable(app.buttons["Export CSV history"])
         app.buttons["Export CSV history"].tap()
         XCTAssertTrue(
             app.alerts["Export ready"].waitForExistence(timeout: 10),
@@ -75,6 +81,42 @@ final class DataOwnershipUITests: XCTestCase {
         // DataTransferServiceTests against the real GRDB store).
         scrollToExists(app.buttons["Import JSON backup"])
         XCTAssertTrue(app.buttons["Import JSON backup"].exists)
+    }
+
+    /// Scroll the sheet's list until the element is not only mounted in
+    /// the AX tree but actually hittable. Existence alone is not enough:
+    /// a row that scrolled partially under the navigation bar stays
+    /// mounted with a clipped frame, `tap()` synthesizes onto dead space,
+    /// and the resulting failure looks like "the button's action never
+    /// ran" (run 35619636791). Direction: swipeDown first (the export
+    /// buttons live ABOVE the privacy section the earlier sweeps parked
+    /// at), then swipeUp, bounded.
+    /// iOS 26 List bridges to UICollectionView — probe collectionViews
+    /// first, keep the table fallback.
+    private func scrollUntilHittable(_ element: XCUIElement) {
+        if element.waitForExistence(timeout: 2), element.isHittable { return }
+        let scroller: XCUIElement
+        if app.collectionViews.firstMatch.waitForExistence(timeout: 3) {
+            scroller = app.collectionViews.firstMatch
+        } else {
+            XCTAssertTrue(
+                app.tables.firstMatch.waitForExistence(timeout: 3),
+                app.debugDescription
+            )
+            scroller = app.tables.firstMatch
+        }
+        for _ in 0..<8 {
+            if element.isHittable { return }
+            scroller.swipeDown()
+        }
+        for _ in 0..<12 {
+            if element.isHittable { return }
+            scroller.swipeUp()
+        }
+        XCTAssertTrue(
+            element.isHittable,
+            "Element never became hittable after bounded bidirectional scrolling.\n\n\(app.debugDescription)"
+        )
     }
 
     /// Hosted-simulator List rows mount lazily; probe, then scroll down,
