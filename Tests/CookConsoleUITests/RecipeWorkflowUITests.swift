@@ -133,11 +133,15 @@ final class RecipeWorkflowUITests: XCTestCase {
     }
 
     func testConsecutiveQueuedCompletionAlertsPresentInOrder() throws {
-        // Staggered fixture (seeded by AppStore): step 1 fires at 20s and
-        // step 2 fires 40s after its own start (which itself begins several
-        // seconds into the test), so completion order is strict regardless of
-        // how long the UI needs to navigate, and step 2's alert can never
-        // appear inside the 10s dismissal window asserted after the first OK.
+        // Staggered fixture (seeded by AppStore): step 1 expires 20s after
+        // its start and step 2 expires 120s after its own start. Run
+        // 35619636791 proved the old 40s step was not enough: the hosted
+        // runner needed ~31s to discover step 1's alert and its OK-tap/retry
+        // path can consume ~45s more, so step 2 (fired at t=61s) landed
+        // INSIDE step 1's dismissal windows and re-satisfied the shared
+        // "Timer Finished" identifier. 120s separates them beyond any
+        // realistic acknowledgment path; per-step message text remains the
+        // assertion discriminator.
         app.terminate()
         app.launchArguments = ["-ui-testing-reset", "-ui-testing-staggered-timer-fixture"]
         app.launch()
@@ -156,15 +160,22 @@ final class RecipeWorkflowUITests: XCTestCase {
             firstCompletion.staticTexts["Step 1: Boil first. timer finished."].exists
         )
         acknowledgeCompletion(firstCompletion)
-        // Prove the first alert is gone before evaluating the second, so a
-        // lingering outgoing alert can never satisfy the next wait.
-        XCTAssertTrue(
-            firstCompletion.waitForNonExistence(timeout: 10),
-            "First completion alert never dismissed.\n\(app.debugDescription)"
+        // Prove the FIRST completion's message left the UI before evaluating
+        // the second. Alert-level non-existence is the wrong proof: the
+        // identifier "Timer Finished" is shared, so when step 2 completes
+        // inside the check window its alert re-satisfies existence and the
+        // old assertion failed despite a perfect queue (run 35619636791
+        // :161 — failure hierarchy showed the alert up with step 2's
+        // message). The message-scoped query is the durable discriminator.
+        XCTAssertFalse(
+            app.staticTexts["Step 1: Boil first. timer finished."].exists,
+            "Step 1's completion message was still on screen after acknowledgment.\n\n\(app.debugDescription)"
         )
 
         let secondCompletion = app.alerts["Timer Finished"]
-        XCTAssertTrue(secondCompletion.waitForExistence(timeout: 35))
+        // Step 2 expires ~120s after its start; acknowledgment of step 1 can
+        // consume up to ~75s on a slow hosted runner, so wait generously.
+        XCTAssertTrue(secondCompletion.waitForExistence(timeout: 150))
         XCTAssertTrue(
             secondCompletion.staticTexts["Step 2: Rest second. timer finished."].exists
         )

@@ -7,213 +7,225 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0739E9FD21FC2161538FBB4B /* ConsoleSplitUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4339D8ACE0C05E8D24B7230 /* ConsoleSplitUITests.swift */; };
-		0857A4B66D1453D300B6108C /* TimerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 894290FA7735003B6E746D83 /* TimerEngine.swift */; };
-		0D2BADEE17E2FC3F0C2C1DFC /* CookTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E610B090BB76B67F774781 /* CookTimer.swift */; };
-		0D6063002A1175A3DA187D42 /* AppInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8AE1F9A99F804855140669 /* AppInfoTests.swift */; };
-		14318ED1E12E0A26E0B382E9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9497E27C61CB352897207C0 /* Foundation.framework */; };
-		257D239819019FB232FD2A5E /* Recipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2045223B59DA000E9CBC59A1 /* Recipe.swift */; };
-		26AB600AA19A453359586729 /* PlainTextRecipeParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0E678BDD63467F7A055B70F /* PlainTextRecipeParserTests.swift */; };
-		29B8B3BA93E2C2AF0D0C82EF /* RecipeWorkflowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7377D537C9BF89E2CB67BF6 /* RecipeWorkflowUITests.swift */; };
-		2D0D9C7A944FD2945489270A /* AppStoreQueryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9C8FAC21FFCE67F31F9442 /* AppStoreQueryTests.swift */; };
-		2FEC15F0F109FEEED7CD5E18 /* RecipeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1495A71F2791918E749DA98 /* RecipeEditorView.swift */; };
-		31C1441788EA7A2FAC5B9378 /* DomainModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AEDD3130A32E19E9E118C59 /* DomainModelTests.swift */; };
-		32B3EFAD592070BBA45F20A2 /* CookProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF0D5218BBD35774385FCEB /* CookProgressTests.swift */; };
-		3411C7C85DD3087724772338 /* PlainTextRecipeParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 166385ADE9CFFCD328030CF3 /* PlainTextRecipeParser.swift */; };
-		47A4BB492ABBD148CD77E5E6 /* TimerEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2891C2F764B8217B6AD9314A /* TimerEngineTests.swift */; };
-		4AB2736FE83FED50CC968BB7 /* ConsoleSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E8056831D5687C364448ED /* ConsoleSurface.swift */; };
-		525B1E8AAF64BE0D09449819 /* ScalingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 697FB6715B1845C03283689D /* ScalingEngineTests.swift */; };
-		586BAC9099C24433F81268BD /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 039990905F57B3C27FBB8DC0 /* AppStore.swift */; };
-		59394DDB3C076B14D3770961 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 0B51B96422D6CFC3802FA321 /* GRDB */; };
-		5B86BD9BBE4EB7137535F133 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9497E27C61CB352897207C0 /* Foundation.framework */; };
-		634B320D8B1A94C010D88BA2 /* ConsoleLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A8B513F5CCBECE566BD9C0 /* ConsoleLayout.swift */; };
-		68129E786D439789AEF670EB /* RecipeLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C83692634F2D3885FDD0D9D8 /* RecipeLibraryView.swift */; };
-		71AF3D36B35794308FE78CA7 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9497E27C61CB352897207C0 /* Foundation.framework */; };
-		72C9A4C2D4748AA14BDB872B /* CookSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71036965C514AFAE0876734 /* CookSession.swift */; };
-		7376EFEC46E63D771607AE40 /* RecipeRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFD593B0A5C8A62E24F449F /* RecipeRepositoryTests.swift */; };
-		7A4812E562B291DA9E8CF2A0 /* RecipeDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C7EF0FEF80E0F3E9FC48DF7 /* RecipeDraft.swift */; };
-		7B4DCE496EF0817200F94687 /* TimerNotificationScheduling.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27A8D60440FB1D11925954A /* TimerNotificationScheduling.swift */; };
-		7F67BD49B6ED8C5816C1CC2C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C3595FE234793E2E29667C /* ContentView.swift */; };
-		85C714DD474BD0C8BD862991 /* AppInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC714A417B6A883254503A73 /* AppInfo.swift */; };
-		85FBCC4F4127A1A223774066 /* CookConsoleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A494330BF75BD2B3624168 /* CookConsoleApp.swift */; };
-		89B057E36CAB0DF5225A266A /* ConsoleLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E2ADC178A073A2DADBA7F3 /* ConsoleLayoutTests.swift */; };
-		91196FF48D93569C4A2522CB /* TimerRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26968402747F2B1B2D7D0817 /* TimerRepository.swift */; };
-		A66D56D9A63954598285A8D3 /* RecipeRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF8AE0136201D35B3982A05F /* RecipeRepository.swift */; };
-		BB0D068AF2A52AC4B4F550A4 /* LocalNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AEAB7D8E2C6B78769B492F5 /* LocalNotificationService.swift */; };
-		BD54354640C50EC206290B6B /* CookModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A8BFECF21ED420B173E9FF0 /* CookModeView.swift */; };
-		C1C85D5F96981C68B2DD8346 /* RecipeDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A774864843C7520A80F358 /* RecipeDatabase.swift */; };
-		E39A4EE073BDD92066A6B4F3 /* ScalingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C86A5F778C8BA2A7B634C87 /* ScalingEngine.swift */; };
-		E8343ECC5EF11D3A3E515FBA /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = D4EDC7C3D8D69231ED26EB37 /* GRDB */; };
-		F19500885D3CA9F711B43ED7 /* RecipeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBAA8AA9A32314A419070EA3 /* RecipeDetailView.swift */; };
-		FB1341C55E7D38A29F0B3978 /* CookSessionRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDC3848AC425A65CC2F1C153 /* CookSessionRepositoryTests.swift */; };
+		027EFA142ADB2F0A3BF698EB /* RecipeWorkflowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5332E8E61A23CBF4C7153FE /* RecipeWorkflowUITests.swift */; };
+		0C82D4173D46DAF1738B1570 /* DataOwnershipUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBC91CE947CF447C57C0F363 /* DataOwnershipUITests.swift */; };
+		140162A5AE6397F52A933D62 /* TimerEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 285C738CB22CCEF82A982ABF /* TimerEngineTests.swift */; };
+		34870DE142A5129A49FD90F7 /* RecipeRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03F732CEDA11A545EBC167B8 /* RecipeRepository.swift */; };
+		3592C8E2CBC3FB995A93441D /* RecipeLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8929B75C4CA3D7E1B9CE417D /* RecipeLibraryView.swift */; };
+		547EA66BEFF811FF776C796F /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 5BBD27382A1C4872BFB80A2A /* GRDB */; };
+		683024EF1604FF79A83A941D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 099B8CB421985AE7A2A7745F /* Foundation.framework */; };
+		6CF6DCB0A5E9B96F35A38238 /* ConsoleSplitUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91F97BA16B27DDCEEC5C6B54 /* ConsoleSplitUITests.swift */; };
+		6FAB753B1218C4D59BD706BE /* CookSessionRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 349B12C69D28DBBDA91880AF /* CookSessionRepositoryTests.swift */; };
+		6FE4F257D341C6C7A77D6BA2 /* ConsoleLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C79090D339505AA6420642AE /* ConsoleLayoutTests.swift */; };
+		712FEB57A9A5152EEB46F19B /* TimerRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F85E0EFBBCD69BDBE884725D /* TimerRepository.swift */; };
+		71380E2B46247EE0A92A9DD3 /* ScalingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7017137E5CE622AB6B87D21 /* ScalingEngine.swift */; };
+		71CC290B57A7C79CA800CBA4 /* CookSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C28524074CEC4BD3AE9232A /* CookSession.swift */; };
+		7C897D1A968C087F02B4D50C /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 099B8CB421985AE7A2A7745F /* Foundation.framework */; };
+		7C8FEE140F9F08B7BB2A1473 /* YourDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1865D852F456C1BE5B566C8D /* YourDataView.swift */; };
+		7E1D67E744A88C89345C6D66 /* ConsoleLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66D3D22E4E7B6CB85AC023DD /* ConsoleLayout.swift */; };
+		7EAA63203A5FBB385A37904D /* Recipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B865409D423D6CFBD29588C3 /* Recipe.swift */; };
+		8916A9FEC583A8691D11674F /* AppStoreQueryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC7CE86929CE5261F3C2F7C2 /* AppStoreQueryTests.swift */; };
+		89AC36C94E7A93F2FAAA91D2 /* RecipeDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58FC1FC7ED562D3CB52CB55E /* RecipeDatabase.swift */; };
+		9828A2931E02EFDEAF737C70 /* RecipeRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7DA7E4B8A08488F6F4199DA /* RecipeRepositoryTests.swift */; };
+		9B1C5331FA33C596089B96F2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E452515FA9D89788EE91B71D /* ContentView.swift */; };
+		9CEC8292A9E8A1189F1E89A0 /* CookTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A054D3E58269D7FC0137D44E /* CookTimer.swift */; };
+		9F8CCCE056A7BDEE3EB0C076 /* RecipeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C999C7294C7B266EDEC5E3A /* RecipeDetailView.swift */; };
+		A3922F9EAC8629A295D4FB9C /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = E9B418C00B545CA905E80547 /* GRDB */; };
+		AB30195CF65C895F7B75A390 /* CookModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8D1B626030CA861C730C32C /* CookModeView.swift */; };
+		AD70D3A96E3DF1764456A60C /* CookConsoleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E60E2504FB66D2D5F35604BC /* CookConsoleApp.swift */; };
+		AF536A493AAC927DEBF159C3 /* PlainTextRecipeParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D21865DDFA1DC8BEC60A7AF /* PlainTextRecipeParser.swift */; };
+		B59FC0C6702217FE37C767E6 /* ConsoleSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC4F44EE4B1BB8E97D511BF6 /* ConsoleSurface.swift */; };
+		B72EB5310E747C22B347A1E1 /* PlainTextRecipeParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32FD92E04DBF6DAD227DE22 /* PlainTextRecipeParserTests.swift */; };
+		B9CC46CF7FCF5388289B3B54 /* RecipeDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65851277B71757CF69A645DC /* RecipeDraft.swift */; };
+		C413EEFF955E8AED091B1267 /* DataTransferService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 135DCEE46EA465274B91631F /* DataTransferService.swift */; };
+		CC2547A09570B6A24B181FE7 /* RecipeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A3D475D38D374C7B375253F /* RecipeEditorView.swift */; };
+		CDB545C371A16B98C326AAB3 /* TimerNotificationScheduling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B151FAEB1672596BB1B26E0 /* TimerNotificationScheduling.swift */; };
+		DA0C829A676205E318CA4873 /* DomainModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862BF35CA6AC57ADB638F03D /* DomainModelTests.swift */; };
+		E30597BC8BFE2FB72485BF13 /* AppInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224C18CAC0C24DCE0501D5FE /* AppInfo.swift */; };
+		E87D53ABC948B9D397F76727 /* TimerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DFF7CF6CD1B64C018FD1A54 /* TimerEngine.swift */; };
+		E8B81F7BF9F6E750627560BF /* LocalNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 151A22D1D5DC97605E7989DA /* LocalNotificationService.swift */; };
+		EC535B3056EE722EC6A52070 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 099B8CB421985AE7A2A7745F /* Foundation.framework */; };
+		F51787DF3DC843CB9C2F51DD /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 541409C316D419BE056239CB /* AppStore.swift */; };
+		F858E379EF70475BC64F2BC2 /* DataTransferServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 131DD93D25D3E3A95E444D8F /* DataTransferServiceTests.swift */; };
+		F91ED571A88176AE938BFE55 /* AppInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B9A8DEF08F9622E9B88ACC3 /* AppInfoTests.swift */; };
+		F97EF433A13C34B7025DAA88 /* ScalingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4DDB2A567414D059EFF79DA /* ScalingEngineTests.swift */; };
+		FF78043DC1314EAEDDDB09C4 /* CookProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC1BCBDECB26268CDD9A802 /* CookProgressTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		8285F34DAF2A4C5A13C431A1 /* PBXContainerItemProxy */ = {
+		C7060DFA903C7CF3D42F1CC5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 6A002207D3E97F6A67841096 /* Project object */;
+			containerPortal = 03BB218F1544FFB20548C4CC /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 3BB6663DCA3F40DD21CF610B;
+			remoteGlobalIDString = 187D69D53BC02A9FC9136A10;
 			remoteInfo = CookConsole;
 		};
-		D2A8D2FF29663C8D3FAC309B /* PBXContainerItemProxy */ = {
+		ECEDC24365DBA18633C05E79 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 6A002207D3E97F6A67841096 /* Project object */;
+			containerPortal = 03BB218F1544FFB20548C4CC /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 3BB6663DCA3F40DD21CF610B;
+			remoteGlobalIDString = 187D69D53BC02A9FC9136A10;
 			remoteInfo = CookConsole;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		039990905F57B3C27FBB8DC0 /* AppStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppStore.swift; path = Sources/CookConsole/Application/AppStore.swift; sourceTree = "<group>"; };
-		077691B4BEC7738521C588A6 /* CookConsoleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CookConsoleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		0EFD593B0A5C8A62E24F449F /* RecipeRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeRepositoryTests.swift; path = Tests/CookConsoleTests/RecipeRepositoryTests.swift; sourceTree = "<group>"; };
-		166385ADE9CFFCD328030CF3 /* PlainTextRecipeParser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlainTextRecipeParser.swift; path = Sources/CookConsole/Domain/PlainTextRecipeParser.swift; sourceTree = "<group>"; };
-		2045223B59DA000E9CBC59A1 /* Recipe.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Recipe.swift; path = Sources/CookConsole/Domain/Recipe.swift; sourceTree = "<group>"; };
-		26968402747F2B1B2D7D0817 /* TimerRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimerRepository.swift; path = Sources/CookConsole/Data/TimerRepository.swift; sourceTree = "<group>"; };
-		2891C2F764B8217B6AD9314A /* TimerEngineTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimerEngineTests.swift; path = Tests/CookConsoleTests/TimerEngineTests.swift; sourceTree = "<group>"; };
-		2A8BFECF21ED420B173E9FF0 /* CookModeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookModeView.swift; path = Sources/CookConsole/Features/CookModeView.swift; sourceTree = "<group>"; };
-		3AEDD3130A32E19E9E118C59 /* DomainModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DomainModelTests.swift; path = Tests/CookConsoleTests/DomainModelTests.swift; sourceTree = "<group>"; };
-		47C3595FE234793E2E29667C /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = Sources/CookConsole/ContentView.swift; sourceTree = "<group>"; };
-		4F9C8FAC21FFCE67F31F9442 /* AppStoreQueryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppStoreQueryTests.swift; path = Tests/CookConsoleTests/AppStoreQueryTests.swift; sourceTree = "<group>"; };
-		51E610B090BB76B67F774781 /* CookTimer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookTimer.swift; path = Sources/CookConsole/Domain/CookTimer.swift; sourceTree = "<group>"; };
-		67A8B513F5CCBECE566BD9C0 /* ConsoleLayout.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsoleLayout.swift; path = Sources/CookConsole/Domain/ConsoleLayout.swift; sourceTree = "<group>"; };
-		697FB6715B1845C03283689D /* ScalingEngineTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ScalingEngineTests.swift; path = Tests/CookConsoleTests/ScalingEngineTests.swift; sourceTree = "<group>"; };
-		6C86A5F778C8BA2A7B634C87 /* ScalingEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ScalingEngine.swift; path = Sources/CookConsole/Domain/ScalingEngine.swift; sourceTree = "<group>"; };
-		78E2ADC178A073A2DADBA7F3 /* ConsoleLayoutTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsoleLayoutTests.swift; path = Tests/CookConsoleTests/ConsoleLayoutTests.swift; sourceTree = "<group>"; };
-		894290FA7735003B6E746D83 /* TimerEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimerEngine.swift; path = Sources/CookConsole/Domain/TimerEngine.swift; sourceTree = "<group>"; };
-		8AEAB7D8E2C6B78769B492F5 /* LocalNotificationService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LocalNotificationService.swift; path = Sources/CookConsole/Services/LocalNotificationService.swift; sourceTree = "<group>"; };
-		9AF0D5218BBD35774385FCEB /* CookProgressTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookProgressTests.swift; path = Tests/CookConsoleTests/CookProgressTests.swift; sourceTree = "<group>"; };
-		9C7EF0FEF80E0F3E9FC48DF7 /* RecipeDraft.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeDraft.swift; path = Sources/CookConsole/Domain/RecipeDraft.swift; sourceTree = "<group>"; };
-		A23EF750269C5D82A15D1542 /* CookConsole.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CookConsole.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A9497E27C61CB352897207C0 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		B1495A71F2791918E749DA98 /* RecipeEditorView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeEditorView.swift; path = Sources/CookConsole/Features/RecipeEditorView.swift; sourceTree = "<group>"; };
-		B1A494330BF75BD2B3624168 /* CookConsoleApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookConsoleApp.swift; path = Sources/CookConsole/CookConsoleApp.swift; sourceTree = "<group>"; };
-		BBAA8AA9A32314A419070EA3 /* RecipeDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeDetailView.swift; path = Sources/CookConsole/Features/RecipeDetailView.swift; sourceTree = "<group>"; };
-		BDC3848AC425A65CC2F1C153 /* CookSessionRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookSessionRepositoryTests.swift; path = Tests/CookConsoleTests/CookSessionRepositoryTests.swift; sourceTree = "<group>"; };
-		C0E678BDD63467F7A055B70F /* PlainTextRecipeParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlainTextRecipeParserTests.swift; path = Tests/CookConsoleTests/PlainTextRecipeParserTests.swift; sourceTree = "<group>"; };
-		C4339D8ACE0C05E8D24B7230 /* ConsoleSplitUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsoleSplitUITests.swift; path = Tests/CookConsoleUITests/ConsoleSplitUITests.swift; sourceTree = "<group>"; };
-		C71036965C514AFAE0876734 /* CookSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookSession.swift; path = Sources/CookConsole/Domain/CookSession.swift; sourceTree = "<group>"; };
-		C7377D537C9BF89E2CB67BF6 /* RecipeWorkflowUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeWorkflowUITests.swift; path = Tests/CookConsoleUITests/RecipeWorkflowUITests.swift; sourceTree = "<group>"; };
-		C83692634F2D3885FDD0D9D8 /* RecipeLibraryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeLibraryView.swift; path = Sources/CookConsole/Features/RecipeLibraryView.swift; sourceTree = "<group>"; };
-		CC714A417B6A883254503A73 /* AppInfo.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppInfo.swift; path = Sources/CookConsole/AppInfo.swift; sourceTree = "<group>"; };
-		CF8AE0136201D35B3982A05F /* RecipeRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeRepository.swift; path = Sources/CookConsole/Data/RecipeRepository.swift; sourceTree = "<group>"; };
-		DC8AE1F9A99F804855140669 /* AppInfoTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppInfoTests.swift; path = Tests/CookConsoleTests/AppInfoTests.swift; sourceTree = "<group>"; };
-		E5A774864843C7520A80F358 /* RecipeDatabase.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeDatabase.swift; path = Sources/CookConsole/Data/RecipeDatabase.swift; sourceTree = "<group>"; };
-		F27A8D60440FB1D11925954A /* TimerNotificationScheduling.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimerNotificationScheduling.swift; path = Sources/CookConsole/Services/TimerNotificationScheduling.swift; sourceTree = "<group>"; };
-		F2E8056831D5687C364448ED /* ConsoleSurface.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsoleSurface.swift; path = Sources/CookConsole/Features/ConsoleSurface.swift; sourceTree = "<group>"; };
-		F878E45B8266B92532C05409 /* CookConsoleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CookConsoleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		03F732CEDA11A545EBC167B8 /* RecipeRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeRepository.swift; path = Sources/CookConsole/Data/RecipeRepository.swift; sourceTree = "<group>"; };
+		099B8CB421985AE7A2A7745F /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		0C28524074CEC4BD3AE9232A /* CookSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookSession.swift; path = Sources/CookConsole/Domain/CookSession.swift; sourceTree = "<group>"; };
+		131DD93D25D3E3A95E444D8F /* DataTransferServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DataTransferServiceTests.swift; path = Tests/CookConsoleTests/DataTransferServiceTests.swift; sourceTree = "<group>"; };
+		135DCEE46EA465274B91631F /* DataTransferService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DataTransferService.swift; path = Sources/CookConsole/Data/DataTransferService.swift; sourceTree = "<group>"; };
+		151A22D1D5DC97605E7989DA /* LocalNotificationService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LocalNotificationService.swift; path = Sources/CookConsole/Services/LocalNotificationService.swift; sourceTree = "<group>"; };
+		1865D852F456C1BE5B566C8D /* YourDataView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = YourDataView.swift; path = Sources/CookConsole/Features/YourDataView.swift; sourceTree = "<group>"; };
+		1B9A8DEF08F9622E9B88ACC3 /* AppInfoTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppInfoTests.swift; path = Tests/CookConsoleTests/AppInfoTests.swift; sourceTree = "<group>"; };
+		1D2E64E5169D45EC52F1D62E /* CookConsole.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CookConsole.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		224C18CAC0C24DCE0501D5FE /* AppInfo.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppInfo.swift; path = Sources/CookConsole/AppInfo.swift; sourceTree = "<group>"; };
+		285C738CB22CCEF82A982ABF /* TimerEngineTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimerEngineTests.swift; path = Tests/CookConsoleTests/TimerEngineTests.swift; sourceTree = "<group>"; };
+		2A3D475D38D374C7B375253F /* RecipeEditorView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeEditorView.swift; path = Sources/CookConsole/Features/RecipeEditorView.swift; sourceTree = "<group>"; };
+		349B12C69D28DBBDA91880AF /* CookSessionRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookSessionRepositoryTests.swift; path = Tests/CookConsoleTests/CookSessionRepositoryTests.swift; sourceTree = "<group>"; };
+		3DFF7CF6CD1B64C018FD1A54 /* TimerEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimerEngine.swift; path = Sources/CookConsole/Domain/TimerEngine.swift; sourceTree = "<group>"; };
+		3FC1BCBDECB26268CDD9A802 /* CookProgressTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookProgressTests.swift; path = Tests/CookConsoleTests/CookProgressTests.swift; sourceTree = "<group>"; };
+		541409C316D419BE056239CB /* AppStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppStore.swift; path = Sources/CookConsole/Application/AppStore.swift; sourceTree = "<group>"; };
+		58FC1FC7ED562D3CB52CB55E /* RecipeDatabase.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeDatabase.swift; path = Sources/CookConsole/Data/RecipeDatabase.swift; sourceTree = "<group>"; };
+		5943956C93747355364493D9 /* CookConsoleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CookConsoleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5B151FAEB1672596BB1B26E0 /* TimerNotificationScheduling.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimerNotificationScheduling.swift; path = Sources/CookConsole/Services/TimerNotificationScheduling.swift; sourceTree = "<group>"; };
+		65851277B71757CF69A645DC /* RecipeDraft.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeDraft.swift; path = Sources/CookConsole/Domain/RecipeDraft.swift; sourceTree = "<group>"; };
+		66D3D22E4E7B6CB85AC023DD /* ConsoleLayout.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsoleLayout.swift; path = Sources/CookConsole/Domain/ConsoleLayout.swift; sourceTree = "<group>"; };
+		7C999C7294C7B266EDEC5E3A /* RecipeDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeDetailView.swift; path = Sources/CookConsole/Features/RecipeDetailView.swift; sourceTree = "<group>"; };
+		7D21865DDFA1DC8BEC60A7AF /* PlainTextRecipeParser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlainTextRecipeParser.swift; path = Sources/CookConsole/Domain/PlainTextRecipeParser.swift; sourceTree = "<group>"; };
+		862BF35CA6AC57ADB638F03D /* DomainModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DomainModelTests.swift; path = Tests/CookConsoleTests/DomainModelTests.swift; sourceTree = "<group>"; };
+		8929B75C4CA3D7E1B9CE417D /* RecipeLibraryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeLibraryView.swift; path = Sources/CookConsole/Features/RecipeLibraryView.swift; sourceTree = "<group>"; };
+		91F97BA16B27DDCEEC5C6B54 /* ConsoleSplitUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsoleSplitUITests.swift; path = Tests/CookConsoleUITests/ConsoleSplitUITests.swift; sourceTree = "<group>"; };
+		A054D3E58269D7FC0137D44E /* CookTimer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookTimer.swift; path = Sources/CookConsole/Domain/CookTimer.swift; sourceTree = "<group>"; };
+		B865409D423D6CFBD29588C3 /* Recipe.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Recipe.swift; path = Sources/CookConsole/Domain/Recipe.swift; sourceTree = "<group>"; };
+		BBC91CE947CF447C57C0F363 /* DataOwnershipUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DataOwnershipUITests.swift; path = Tests/CookConsoleUITests/DataOwnershipUITests.swift; sourceTree = "<group>"; };
+		C32FD92E04DBF6DAD227DE22 /* PlainTextRecipeParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlainTextRecipeParserTests.swift; path = Tests/CookConsoleTests/PlainTextRecipeParserTests.swift; sourceTree = "<group>"; };
+		C4DDB2A567414D059EFF79DA /* ScalingEngineTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ScalingEngineTests.swift; path = Tests/CookConsoleTests/ScalingEngineTests.swift; sourceTree = "<group>"; };
+		C79090D339505AA6420642AE /* ConsoleLayoutTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsoleLayoutTests.swift; path = Tests/CookConsoleTests/ConsoleLayoutTests.swift; sourceTree = "<group>"; };
+		C7DA7E4B8A08488F6F4199DA /* RecipeRepositoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeRepositoryTests.swift; path = Tests/CookConsoleTests/RecipeRepositoryTests.swift; sourceTree = "<group>"; };
+		CC7CE86929CE5261F3C2F7C2 /* AppStoreQueryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppStoreQueryTests.swift; path = Tests/CookConsoleTests/AppStoreQueryTests.swift; sourceTree = "<group>"; };
+		D27F35F71F07B8490F85B716 /* CookConsoleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CookConsoleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DC4F44EE4B1BB8E97D511BF6 /* ConsoleSurface.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsoleSurface.swift; path = Sources/CookConsole/Features/ConsoleSurface.swift; sourceTree = "<group>"; };
+		E452515FA9D89788EE91B71D /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = Sources/CookConsole/ContentView.swift; sourceTree = "<group>"; };
+		E5332E8E61A23CBF4C7153FE /* RecipeWorkflowUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeWorkflowUITests.swift; path = Tests/CookConsoleUITests/RecipeWorkflowUITests.swift; sourceTree = "<group>"; };
+		E60E2504FB66D2D5F35604BC /* CookConsoleApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookConsoleApp.swift; path = Sources/CookConsole/CookConsoleApp.swift; sourceTree = "<group>"; };
+		E7017137E5CE622AB6B87D21 /* ScalingEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ScalingEngine.swift; path = Sources/CookConsole/Domain/ScalingEngine.swift; sourceTree = "<group>"; };
+		E8D1B626030CA861C730C32C /* CookModeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookModeView.swift; path = Sources/CookConsole/Features/CookModeView.swift; sourceTree = "<group>"; };
+		F85E0EFBBCD69BDBE884725D /* TimerRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TimerRepository.swift; path = Sources/CookConsole/Data/TimerRepository.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		1A51670BAA21107010B49E56 /* Frameworks */ = {
+		2FE3BF28742E0324CEFB244F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				71AF3D36B35794308FE78CA7 /* Foundation.framework in Frameworks */,
+				7C897D1A968C087F02B4D50C /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2F7D44A3286DE837EDA9D1EB /* Frameworks */ = {
+		B769AF8EE35E373B3C105A69 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5B86BD9BBE4EB7137535F133 /* Foundation.framework in Frameworks */,
-				59394DDB3C076B14D3770961 /* GRDB in Frameworks */,
+				683024EF1604FF79A83A941D /* Foundation.framework in Frameworks */,
+				A3922F9EAC8629A295D4FB9C /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		C74F0D24F9957A7504D915F2 /* Frameworks */ = {
+		EFCC91DE2CD6324059C87244 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				14318ED1E12E0A26E0B382E9 /* Foundation.framework in Frameworks */,
-				E8343ECC5EF11D3A3E515FBA /* GRDB in Frameworks */,
+				EC535B3056EE722EC6A52070 /* Foundation.framework in Frameworks */,
+				547EA66BEFF811FF776C796F /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		C13F4133E39E46B1AA754976 /* Products */ = {
+		0284DAE772EE1B3999F9323B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				A23EF750269C5D82A15D1542 /* CookConsole.app */,
-				077691B4BEC7738521C588A6 /* CookConsoleTests.xctest */,
-				F878E45B8266B92532C05409 /* CookConsoleUITests.xctest */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		CF6FF30BEBAB88D2C6EABEE0 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				D298A1DEFB2BEF98DA3EABFF /* iOS */,
+				E4D1D2C852039467D7E4EDA7 /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		D298A1DEFB2BEF98DA3EABFF /* iOS */ = {
+		432CB84B608A28D3C77A3EEB /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A9497E27C61CB352897207C0 /* Foundation.framework */,
+				1D2E64E5169D45EC52F1D62E /* CookConsole.app */,
+				5943956C93747355364493D9 /* CookConsoleTests.xctest */,
+				D27F35F71F07B8490F85B716 /* CookConsoleUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E4D1D2C852039467D7E4EDA7 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				099B8CB421985AE7A2A7745F /* Foundation.framework */,
 			);
 			name = iOS;
 			sourceTree = "<group>";
 		};
-		E5DA6576A20F629BE86B9A6B = {
+		ED5B54ED40162FF97BBCAD43 = {
 			isa = PBXGroup;
 			children = (
-				C13F4133E39E46B1AA754976 /* Products */,
-				CF6FF30BEBAB88D2C6EABEE0 /* Frameworks */,
-				CC714A417B6A883254503A73 /* AppInfo.swift */,
-				039990905F57B3C27FBB8DC0 /* AppStore.swift */,
-				47C3595FE234793E2E29667C /* ContentView.swift */,
-				B1A494330BF75BD2B3624168 /* CookConsoleApp.swift */,
-				E5A774864843C7520A80F358 /* RecipeDatabase.swift */,
-				CF8AE0136201D35B3982A05F /* RecipeRepository.swift */,
-				26968402747F2B1B2D7D0817 /* TimerRepository.swift */,
-				67A8B513F5CCBECE566BD9C0 /* ConsoleLayout.swift */,
-				C71036965C514AFAE0876734 /* CookSession.swift */,
-				51E610B090BB76B67F774781 /* CookTimer.swift */,
-				166385ADE9CFFCD328030CF3 /* PlainTextRecipeParser.swift */,
-				2045223B59DA000E9CBC59A1 /* Recipe.swift */,
-				9C7EF0FEF80E0F3E9FC48DF7 /* RecipeDraft.swift */,
-				6C86A5F778C8BA2A7B634C87 /* ScalingEngine.swift */,
-				894290FA7735003B6E746D83 /* TimerEngine.swift */,
-				F2E8056831D5687C364448ED /* ConsoleSurface.swift */,
-				2A8BFECF21ED420B173E9FF0 /* CookModeView.swift */,
-				BBAA8AA9A32314A419070EA3 /* RecipeDetailView.swift */,
-				B1495A71F2791918E749DA98 /* RecipeEditorView.swift */,
-				C83692634F2D3885FDD0D9D8 /* RecipeLibraryView.swift */,
-				8AEAB7D8E2C6B78769B492F5 /* LocalNotificationService.swift */,
-				F27A8D60440FB1D11925954A /* TimerNotificationScheduling.swift */,
-				DC8AE1F9A99F804855140669 /* AppInfoTests.swift */,
-				4F9C8FAC21FFCE67F31F9442 /* AppStoreQueryTests.swift */,
-				78E2ADC178A073A2DADBA7F3 /* ConsoleLayoutTests.swift */,
-				9AF0D5218BBD35774385FCEB /* CookProgressTests.swift */,
-				BDC3848AC425A65CC2F1C153 /* CookSessionRepositoryTests.swift */,
-				3AEDD3130A32E19E9E118C59 /* DomainModelTests.swift */,
-				C0E678BDD63467F7A055B70F /* PlainTextRecipeParserTests.swift */,
-				0EFD593B0A5C8A62E24F449F /* RecipeRepositoryTests.swift */,
-				697FB6715B1845C03283689D /* ScalingEngineTests.swift */,
-				2891C2F764B8217B6AD9314A /* TimerEngineTests.swift */,
-				C4339D8ACE0C05E8D24B7230 /* ConsoleSplitUITests.swift */,
-				C7377D537C9BF89E2CB67BF6 /* RecipeWorkflowUITests.swift */,
+				432CB84B608A28D3C77A3EEB /* Products */,
+				0284DAE772EE1B3999F9323B /* Frameworks */,
+				224C18CAC0C24DCE0501D5FE /* AppInfo.swift */,
+				541409C316D419BE056239CB /* AppStore.swift */,
+				E452515FA9D89788EE91B71D /* ContentView.swift */,
+				E60E2504FB66D2D5F35604BC /* CookConsoleApp.swift */,
+				135DCEE46EA465274B91631F /* DataTransferService.swift */,
+				58FC1FC7ED562D3CB52CB55E /* RecipeDatabase.swift */,
+				03F732CEDA11A545EBC167B8 /* RecipeRepository.swift */,
+				F85E0EFBBCD69BDBE884725D /* TimerRepository.swift */,
+				66D3D22E4E7B6CB85AC023DD /* ConsoleLayout.swift */,
+				0C28524074CEC4BD3AE9232A /* CookSession.swift */,
+				A054D3E58269D7FC0137D44E /* CookTimer.swift */,
+				7D21865DDFA1DC8BEC60A7AF /* PlainTextRecipeParser.swift */,
+				B865409D423D6CFBD29588C3 /* Recipe.swift */,
+				65851277B71757CF69A645DC /* RecipeDraft.swift */,
+				E7017137E5CE622AB6B87D21 /* ScalingEngine.swift */,
+				3DFF7CF6CD1B64C018FD1A54 /* TimerEngine.swift */,
+				DC4F44EE4B1BB8E97D511BF6 /* ConsoleSurface.swift */,
+				E8D1B626030CA861C730C32C /* CookModeView.swift */,
+				7C999C7294C7B266EDEC5E3A /* RecipeDetailView.swift */,
+				2A3D475D38D374C7B375253F /* RecipeEditorView.swift */,
+				8929B75C4CA3D7E1B9CE417D /* RecipeLibraryView.swift */,
+				1865D852F456C1BE5B566C8D /* YourDataView.swift */,
+				151A22D1D5DC97605E7989DA /* LocalNotificationService.swift */,
+				5B151FAEB1672596BB1B26E0 /* TimerNotificationScheduling.swift */,
+				1B9A8DEF08F9622E9B88ACC3 /* AppInfoTests.swift */,
+				CC7CE86929CE5261F3C2F7C2 /* AppStoreQueryTests.swift */,
+				C79090D339505AA6420642AE /* ConsoleLayoutTests.swift */,
+				3FC1BCBDECB26268CDD9A802 /* CookProgressTests.swift */,
+				349B12C69D28DBBDA91880AF /* CookSessionRepositoryTests.swift */,
+				131DD93D25D3E3A95E444D8F /* DataTransferServiceTests.swift */,
+				862BF35CA6AC57ADB638F03D /* DomainModelTests.swift */,
+				C32FD92E04DBF6DAD227DE22 /* PlainTextRecipeParserTests.swift */,
+				C7DA7E4B8A08488F6F4199DA /* RecipeRepositoryTests.swift */,
+				C4DDB2A567414D059EFF79DA /* ScalingEngineTests.swift */,
+				285C738CB22CCEF82A982ABF /* TimerEngineTests.swift */,
+				91F97BA16B27DDCEEC5C6B54 /* ConsoleSplitUITests.swift */,
+				BBC91CE947CF447C57C0F363 /* DataOwnershipUITests.swift */,
+				E5332E8E61A23CBF4C7153FE /* RecipeWorkflowUITests.swift */,
 			);
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		3BB6663DCA3F40DD21CF610B /* CookConsole */ = {
+		187D69D53BC02A9FC9136A10 /* CookConsole */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A7DB0493EE6A78724F8511CF /* Build configuration list for PBXNativeTarget "CookConsole" */;
+			buildConfigurationList = E2A27FE3BAE8535F270DA3C9 /* Build configuration list for PBXNativeTarget "CookConsole" */;
 			buildPhases = (
-				88F82B44C493934D87C73CF7 /* Sources */,
-				C74F0D24F9957A7504D915F2 /* Frameworks */,
-				57C73FEEA6EF1A6F5600C739 /* Resources */,
+				05AA37C3F3C9437848BCBC65 /* Sources */,
+				EFCC91DE2CD6324059C87244 /* Frameworks */,
+				14D75E1F06A483DA3FBA2D29 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -221,61 +233,61 @@
 			);
 			name = CookConsole;
 			packageProductDependencies = (
-				D4EDC7C3D8D69231ED26EB37 /* GRDB */,
+				5BBD27382A1C4872BFB80A2A /* GRDB */,
 			);
 			productName = CookConsole;
-			productReference = A23EF750269C5D82A15D1542 /* CookConsole.app */;
+			productReference = 1D2E64E5169D45EC52F1D62E /* CookConsole.app */;
 			productType = "com.apple.product-type.application";
 		};
-		6632CBF30341DBA36B3D5DE2 /* CookConsoleTests */ = {
+		1CAC49BC19A1EDCAACE8ED0C /* CookConsoleUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = ADFEE88362910C33C731C460 /* Build configuration list for PBXNativeTarget "CookConsoleTests" */;
+			buildConfigurationList = 4A298E27001F2D22D16A4328 /* Build configuration list for PBXNativeTarget "CookConsoleUITests" */;
 			buildPhases = (
-				5AA9A1B994DAC3DDA7BEB8AB /* Sources */,
-				2F7D44A3286DE837EDA9D1EB /* Frameworks */,
-				4E7D6719EB9EF5B779C8627D /* Resources */,
+				04E7FB76841587A75F11DCB7 /* Sources */,
+				2FE3BF28742E0324CEFB244F /* Frameworks */,
+				6B1C9F86B26B1A3016C5075E /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				30F1DEC06F20F839EC48E5A6 /* PBXTargetDependency */,
-			);
-			name = CookConsoleTests;
-			packageProductDependencies = (
-				0B51B96422D6CFC3802FA321 /* GRDB */,
-			);
-			productName = CookConsoleTests;
-			productReference = 077691B4BEC7738521C588A6 /* CookConsoleTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		C00B2B9E6DBFF8272923FAF7 /* CookConsoleUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = D7231F93CE0B1B1FB99CFF4F /* Build configuration list for PBXNativeTarget "CookConsoleUITests" */;
-			buildPhases = (
-				DD20E83BA11E7548321FCAC1 /* Sources */,
-				1A51670BAA21107010B49E56 /* Frameworks */,
-				6A6009D20967C962E99DB155 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				A4DDBE257ED1EC9B87D14421 /* PBXTargetDependency */,
+				F10512B3C58352C2BED90DD9 /* PBXTargetDependency */,
 			);
 			name = CookConsoleUITests;
 			productName = CookConsoleUITests;
-			productReference = F878E45B8266B92532C05409 /* CookConsoleUITests.xctest */;
+			productReference = D27F35F71F07B8490F85B716 /* CookConsoleUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		71D06C374F064B0CEB0C5994 /* CookConsoleTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 41B8AECFB77966EAA770B399 /* Build configuration list for PBXNativeTarget "CookConsoleTests" */;
+			buildPhases = (
+				E2D6DC3ABBA1CE1F8C8BAAD9 /* Sources */,
+				B769AF8EE35E373B3C105A69 /* Frameworks */,
+				42200A6549335EC6C9D19359 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5223CF859E827F9732C5F491 /* PBXTargetDependency */,
+			);
+			name = CookConsoleTests;
+			packageProductDependencies = (
+				E9B418C00B545CA905E80547 /* GRDB */,
+			);
+			productName = CookConsoleTests;
+			productReference = 5943956C93747355364493D9 /* CookConsoleTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		6A002207D3E97F6A67841096 /* Project object */ = {
+		03BB218F1544FFB20548C4CC /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 			};
-			buildConfigurationList = 68B953EE0E17348FE7770AA5 /* Build configuration list for PBXProject "CookConsole" */;
+			buildConfigurationList = 08A487CC046EF52F6CFC89C0 /* Build configuration list for PBXProject "CookConsole" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -283,39 +295,39 @@
 				en,
 				Base,
 			);
-			mainGroup = E5DA6576A20F629BE86B9A6B;
+			mainGroup = ED5B54ED40162FF97BBCAD43;
 			minimizedProjectReferenceProxies = 0;
 			packageReferences = (
-				5ED2762A63D644AF1FCA53E1 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+				78F09CD6A96AF2243647493D /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 			);
 			preferredProjectObjectVersion = 100;
-			productRefGroup = C13F4133E39E46B1AA754976 /* Products */;
+			productRefGroup = 432CB84B608A28D3C77A3EEB /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				3BB6663DCA3F40DD21CF610B /* CookConsole */,
-				6632CBF30341DBA36B3D5DE2 /* CookConsoleTests */,
-				C00B2B9E6DBFF8272923FAF7 /* CookConsoleUITests */,
+				187D69D53BC02A9FC9136A10 /* CookConsole */,
+				71D06C374F064B0CEB0C5994 /* CookConsoleTests */,
+				1CAC49BC19A1EDCAACE8ED0C /* CookConsoleUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		4E7D6719EB9EF5B779C8627D /* Resources */ = {
+		14D75E1F06A483DA3FBA2D29 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		57C73FEEA6EF1A6F5600C739 /* Resources */ = {
+		42200A6549335EC6C9D19359 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		6A6009D20967C962E99DB155 /* Resources */ = {
+		6B1C9F86B26B1A3016C5075E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -325,152 +337,84 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		5AA9A1B994DAC3DDA7BEB8AB /* Sources */ = {
+		04E7FB76841587A75F11DCB7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0D6063002A1175A3DA187D42 /* AppInfoTests.swift in Sources */,
-				2D0D9C7A944FD2945489270A /* AppStoreQueryTests.swift in Sources */,
-				89B057E36CAB0DF5225A266A /* ConsoleLayoutTests.swift in Sources */,
-				32B3EFAD592070BBA45F20A2 /* CookProgressTests.swift in Sources */,
-				FB1341C55E7D38A29F0B3978 /* CookSessionRepositoryTests.swift in Sources */,
-				31C1441788EA7A2FAC5B9378 /* DomainModelTests.swift in Sources */,
-				26AB600AA19A453359586729 /* PlainTextRecipeParserTests.swift in Sources */,
-				7376EFEC46E63D771607AE40 /* RecipeRepositoryTests.swift in Sources */,
-				525B1E8AAF64BE0D09449819 /* ScalingEngineTests.swift in Sources */,
-				47A4BB492ABBD148CD77E5E6 /* TimerEngineTests.swift in Sources */,
+				6CF6DCB0A5E9B96F35A38238 /* ConsoleSplitUITests.swift in Sources */,
+				0C82D4173D46DAF1738B1570 /* DataOwnershipUITests.swift in Sources */,
+				027EFA142ADB2F0A3BF698EB /* RecipeWorkflowUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		88F82B44C493934D87C73CF7 /* Sources */ = {
+		05AA37C3F3C9437848BCBC65 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				85C714DD474BD0C8BD862991 /* AppInfo.swift in Sources */,
-				586BAC9099C24433F81268BD /* AppStore.swift in Sources */,
-				7F67BD49B6ED8C5816C1CC2C /* ContentView.swift in Sources */,
-				85FBCC4F4127A1A223774066 /* CookConsoleApp.swift in Sources */,
-				C1C85D5F96981C68B2DD8346 /* RecipeDatabase.swift in Sources */,
-				A66D56D9A63954598285A8D3 /* RecipeRepository.swift in Sources */,
-				91196FF48D93569C4A2522CB /* TimerRepository.swift in Sources */,
-				634B320D8B1A94C010D88BA2 /* ConsoleLayout.swift in Sources */,
-				72C9A4C2D4748AA14BDB872B /* CookSession.swift in Sources */,
-				0D2BADEE17E2FC3F0C2C1DFC /* CookTimer.swift in Sources */,
-				3411C7C85DD3087724772338 /* PlainTextRecipeParser.swift in Sources */,
-				257D239819019FB232FD2A5E /* Recipe.swift in Sources */,
-				7A4812E562B291DA9E8CF2A0 /* RecipeDraft.swift in Sources */,
-				E39A4EE073BDD92066A6B4F3 /* ScalingEngine.swift in Sources */,
-				0857A4B66D1453D300B6108C /* TimerEngine.swift in Sources */,
-				4AB2736FE83FED50CC968BB7 /* ConsoleSurface.swift in Sources */,
-				BD54354640C50EC206290B6B /* CookModeView.swift in Sources */,
-				F19500885D3CA9F711B43ED7 /* RecipeDetailView.swift in Sources */,
-				2FEC15F0F109FEEED7CD5E18 /* RecipeEditorView.swift in Sources */,
-				68129E786D439789AEF670EB /* RecipeLibraryView.swift in Sources */,
-				BB0D068AF2A52AC4B4F550A4 /* LocalNotificationService.swift in Sources */,
-				7B4DCE496EF0817200F94687 /* TimerNotificationScheduling.swift in Sources */,
+				E30597BC8BFE2FB72485BF13 /* AppInfo.swift in Sources */,
+				F51787DF3DC843CB9C2F51DD /* AppStore.swift in Sources */,
+				9B1C5331FA33C596089B96F2 /* ContentView.swift in Sources */,
+				AD70D3A96E3DF1764456A60C /* CookConsoleApp.swift in Sources */,
+				C413EEFF955E8AED091B1267 /* DataTransferService.swift in Sources */,
+				89AC36C94E7A93F2FAAA91D2 /* RecipeDatabase.swift in Sources */,
+				34870DE142A5129A49FD90F7 /* RecipeRepository.swift in Sources */,
+				712FEB57A9A5152EEB46F19B /* TimerRepository.swift in Sources */,
+				7E1D67E744A88C89345C6D66 /* ConsoleLayout.swift in Sources */,
+				71CC290B57A7C79CA800CBA4 /* CookSession.swift in Sources */,
+				9CEC8292A9E8A1189F1E89A0 /* CookTimer.swift in Sources */,
+				AF536A493AAC927DEBF159C3 /* PlainTextRecipeParser.swift in Sources */,
+				7EAA63203A5FBB385A37904D /* Recipe.swift in Sources */,
+				B9CC46CF7FCF5388289B3B54 /* RecipeDraft.swift in Sources */,
+				71380E2B46247EE0A92A9DD3 /* ScalingEngine.swift in Sources */,
+				E87D53ABC948B9D397F76727 /* TimerEngine.swift in Sources */,
+				B59FC0C6702217FE37C767E6 /* ConsoleSurface.swift in Sources */,
+				AB30195CF65C895F7B75A390 /* CookModeView.swift in Sources */,
+				9F8CCCE056A7BDEE3EB0C076 /* RecipeDetailView.swift in Sources */,
+				CC2547A09570B6A24B181FE7 /* RecipeEditorView.swift in Sources */,
+				3592C8E2CBC3FB995A93441D /* RecipeLibraryView.swift in Sources */,
+				7C8FEE140F9F08B7BB2A1473 /* YourDataView.swift in Sources */,
+				E8B81F7BF9F6E750627560BF /* LocalNotificationService.swift in Sources */,
+				CDB545C371A16B98C326AAB3 /* TimerNotificationScheduling.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DD20E83BA11E7548321FCAC1 /* Sources */ = {
+		E2D6DC3ABBA1CE1F8C8BAAD9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0739E9FD21FC2161538FBB4B /* ConsoleSplitUITests.swift in Sources */,
-				29B8B3BA93E2C2AF0D0C82EF /* RecipeWorkflowUITests.swift in Sources */,
+				F91ED571A88176AE938BFE55 /* AppInfoTests.swift in Sources */,
+				8916A9FEC583A8691D11674F /* AppStoreQueryTests.swift in Sources */,
+				6FE4F257D341C6C7A77D6BA2 /* ConsoleLayoutTests.swift in Sources */,
+				FF78043DC1314EAEDDDB09C4 /* CookProgressTests.swift in Sources */,
+				6FAB753B1218C4D59BD706BE /* CookSessionRepositoryTests.swift in Sources */,
+				F858E379EF70475BC64F2BC2 /* DataTransferServiceTests.swift in Sources */,
+				DA0C829A676205E318CA4873 /* DomainModelTests.swift in Sources */,
+				B72EB5310E747C22B347A1E1 /* PlainTextRecipeParserTests.swift in Sources */,
+				9828A2931E02EFDEAF737C70 /* RecipeRepositoryTests.swift in Sources */,
+				F97EF433A13C34B7025DAA88 /* ScalingEngineTests.swift in Sources */,
+				140162A5AE6397F52A933D62 /* TimerEngineTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		30F1DEC06F20F839EC48E5A6 /* PBXTargetDependency */ = {
+		5223CF859E827F9732C5F491 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = CookConsole;
-			target = 3BB6663DCA3F40DD21CF610B /* CookConsole */;
-			targetProxy = 8285F34DAF2A4C5A13C431A1 /* PBXContainerItemProxy */;
+			target = 187D69D53BC02A9FC9136A10 /* CookConsole */;
+			targetProxy = C7060DFA903C7CF3D42F1CC5 /* PBXContainerItemProxy */;
 		};
-		A4DDBE257ED1EC9B87D14421 /* PBXTargetDependency */ = {
+		F10512B3C58352C2BED90DD9 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = CookConsole;
-			target = 3BB6663DCA3F40DD21CF610B /* CookConsole */;
-			targetProxy = D2A8D2FF29663C8D3FAC309B /* PBXContainerItemProxy */;
+			target = 187D69D53BC02A9FC9136A10 /* CookConsole */;
+			targetProxy = ECEDC24365DBA18633C05E79 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		6ABF878B37D001C04011AA3F /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_EXTENSIONS = YES;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole;
-				PRODUCT_NAME = CookConsole;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		6DD2FB69D789A0B13A005B69 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole.tests;
-				SDKROOT = iphoneos;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CookConsole.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CookConsole";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		7415F831DF70473A1FFFD506 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole.tests;
-				SDKROOT = iphoneos;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CookConsole.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CookConsole";
-			};
-			name = Debug;
-		};
-		8EC923A899C4DAC80257C5AA /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_EXTENSIONS = YES;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole;
-				PRODUCT_NAME = CookConsole;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		CEA804B8AE0D2962204012A4 /* Debug */ = {
+		27B2A8ACB2280AE360133B8C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
@@ -479,10 +423,33 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole.uitests;
 				SDKROOT = iphoneos;
 				TEST_TARGET_NAME = CookConsole;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		2BC945CCAD50738F25C79125 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole;
+				PRODUCT_NAME = CookConsole;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
-		EE7D64071973DC8A8478EE73 /* Debug */ = {
+		5B03E3ED131E725FD69CE7F3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -547,7 +514,44 @@
 			};
 			name = Debug;
 		};
-		F5D2014284F4CF018BB12C0C /* Release */ = {
+		6E848154D59FB1A14019B765 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole.tests;
+				SDKROOT = iphoneos;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CookConsole.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CookConsole";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		76AE0FCF59062E53C18BD1CB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole;
+				PRODUCT_NAME = CookConsole;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		773BC7A9C8752892139617E3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
@@ -556,11 +560,23 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole.uitests;
 				SDKROOT = iphoneos;
 				TEST_TARGET_NAME = CookConsole;
-				VALIDATE_PRODUCT = YES;
 			};
-			name = Release;
+			name = Debug;
 		};
-		FC6DC2945F19D7EC920DF963 /* Release */ = {
+		F0054962006A8B7DFD6D7C83 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole.tests;
+				SDKROOT = iphoneos;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CookConsole.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CookConsole";
+			};
+			name = Debug;
+		};
+		FC159A507216200E1D86180A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -621,38 +637,38 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		68B953EE0E17348FE7770AA5 /* Build configuration list for PBXProject "CookConsole" */ = {
+		08A487CC046EF52F6CFC89C0 /* Build configuration list for PBXProject "CookConsole" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				EE7D64071973DC8A8478EE73 /* Debug */,
-				FC6DC2945F19D7EC920DF963 /* Release */,
+				5B03E3ED131E725FD69CE7F3 /* Debug */,
+				FC159A507216200E1D86180A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A7DB0493EE6A78724F8511CF /* Build configuration list for PBXNativeTarget "CookConsole" */ = {
+		41B8AECFB77966EAA770B399 /* Build configuration list for PBXNativeTarget "CookConsoleTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				8EC923A899C4DAC80257C5AA /* Release */,
-				6ABF878B37D001C04011AA3F /* Debug */,
+				6E848154D59FB1A14019B765 /* Release */,
+				F0054962006A8B7DFD6D7C83 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		ADFEE88362910C33C731C460 /* Build configuration list for PBXNativeTarget "CookConsoleTests" */ = {
+		4A298E27001F2D22D16A4328 /* Build configuration list for PBXNativeTarget "CookConsoleUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				6DD2FB69D789A0B13A005B69 /* Release */,
-				7415F831DF70473A1FFFD506 /* Debug */,
+				27B2A8ACB2280AE360133B8C /* Release */,
+				773BC7A9C8752892139617E3 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D7231F93CE0B1B1FB99CFF4F /* Build configuration list for PBXNativeTarget "CookConsoleUITests" */ = {
+		E2A27FE3BAE8535F270DA3C9 /* Build configuration list for PBXNativeTarget "CookConsole" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F5D2014284F4CF018BB12C0C /* Release */,
-				CEA804B8AE0D2962204012A4 /* Debug */,
+				76AE0FCF59062E53C18BD1CB /* Release */,
+				2BC945CCAD50738F25C79125 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -660,7 +676,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		5ED2762A63D644AF1FCA53E1 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
+		78F09CD6A96AF2243647493D /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/groue/GRDB.swift.git";
 			requirement = {
@@ -671,17 +687,17 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		0B51B96422D6CFC3802FA321 /* GRDB */ = {
+		5BBD27382A1C4872BFB80A2A /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 5ED2762A63D644AF1FCA53E1 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			package = 78F09CD6A96AF2243647493D /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
 		};
-		D4EDC7C3D8D69231ED26EB37 /* GRDB */ = {
+		E9B418C00B545CA905E80547 /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 5ED2762A63D644AF1FCA53E1 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			package = 78F09CD6A96AF2243647493D /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
-	rootObject = 6A002207D3E97F6A67841096 /* Project object */;
+	rootObject = 03BB218F1544FFB20548C4CC /* Project object */;
 }

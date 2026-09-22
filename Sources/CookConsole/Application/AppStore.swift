@@ -89,12 +89,15 @@ final class AppStore: ObservableObject {
                     ))
                 }
                 if ProcessInfo.processInfo.arguments.contains("-ui-testing-staggered-timer-fixture") {
-                    // Step 1 expires 20s after its start (comfortably after the
-                    // UI has navigated to step 2) and step 2 expires 40s after
-                    // its own start. The 20s gap keeps step 2's completion
-                    // outside the 10s "first alert must disappear" window
-                    // regardless of how long the UI needs to navigate, so the
-                    // durable queue order is deterministic.
+                    // Step 1 expires 20s after its start (comfortably after
+                    // the UI has navigated to step 2). Step 2 expires 120s
+                    // after its own start: run 35619636791 showed the hosted
+                    // runner can need ~30s to even discover step 1's alert
+                    // and up to ~45s more if OK taps are dropped, so the
+                    // former 40s step let step 2's alert land INSIDE step
+                    // 1's dismissal/retry windows. 120s puts step 2's
+                    // expiry beyond any realistic step 1 acknowledgment
+                    // path, keeping queue order deterministic.
                     try recipeRepository.create(Recipe(
                         title: "Staggered Timer Fixture",
                         servings: 1,
@@ -103,7 +106,7 @@ final class AppStore: ObservableObject {
                         ],
                         steps: [
                             try RecipeStep(instruction: "Boil first.", timerDuration: 20),
-                            try RecipeStep(instruction: "Rest second.", timerDuration: 40),
+                            try RecipeStep(instruction: "Rest second.", timerDuration: 120),
                         ]
                     ))
                 }
@@ -135,6 +138,62 @@ final class AppStore: ObservableObject {
         librarySelectedTag = selectedTag
         reloadLibrary()
     }
+
+    // MARK: - Data ownership (issue #6)
+
+    private lazy var dataTransfer = DataTransferService(database: repository.database)
+
+    /// Writes a versioned JSON backup into the app's temporary Exports
+    /// directory and returns it for the share sheet. Local file write only.
+    func exportedJSONBackupURL() throws -> URL {
+        let directory = try Self.exportDirectory()
+        let stamp = Self.exportStampFormatter.string(from: Date())
+        let url = directory.appendingPathComponent("CookConsole-backup-\(stamp).json")
+        try dataTransfer.writeJSONBackup(to: url)
+        return url
+    }
+
+    /// Writes a cook-history CSV into the app's temporary Exports directory
+    /// and returns it for the share sheet. Local file write only.
+    func exportedHistoryCSVURL() throws -> URL {
+        let directory = try Self.exportDirectory()
+        let stamp = Self.exportStampFormatter.string(from: Date())
+        let url = directory.appendingPathComponent("CookConsole-history-\(stamp).csv")
+        try dataTransfer.writeHistoryCSV(to: url)
+        return url
+    }
+
+    /// Validates and merges one JSON backup file (all-or-nothing) and shows
+    /// the user-visible conflict summary. Throws the per-item validation
+    /// error to the caller without touching the store on failure.
+    @discardableResult
+    func importJSONBackup(from url: URL) throws -> JSONImportOutcome {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        let document = try dataTransfer.validateDocument(at: url)
+        let outcome = try dataTransfer.applyValidated(document)
+        reloadLibrary()
+        importSummary = outcome.summaryText
+        return outcome
+    }
+
+    /// Last applied import summary, shown on the "Your data" screen.
+    @Published var importSummary: String?
+
+    private static func exportDirectory() throws -> URL {
+        let directory = FileManager.default
+            .temporaryDirectory
+            .appendingPathComponent("CookConsole-Exports", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    private static let exportStampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter
+    }()
 
     private func reloadLibrary() {
         do {
