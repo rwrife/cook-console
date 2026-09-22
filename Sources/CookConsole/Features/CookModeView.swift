@@ -53,6 +53,7 @@ struct CookModeView: View {
 
                         HStack(spacing: 16) {
                             Button {
+                                CookHaptics.stepAdvanced()
                                 moveBack()
                             } label: {
                                 Label("Back", systemImage: "chevron.backward")
@@ -64,14 +65,17 @@ struct CookModeView: View {
 
                             if progress.currentStepIndex + 1 == progress.stepCount {
                                 Button {
+                                    CookHaptics.cookCompleted()
                                     end(as: .completed)
                                 } label: {
                                     Label("Complete", systemImage: "checkmark")
                                         .frame(maxWidth: .infinity, minHeight: 60)
                                 }
                                 .buttonStyle(.borderedProminent)
+                                .accessibilityIdentifier("Complete recipe")
                             } else {
                                 Button {
+                                    CookHaptics.stepAdvanced()
                                     moveNext()
                                 } label: {
                                     Label("Next", systemImage: "chevron.forward")
@@ -153,6 +157,9 @@ struct CookModeView: View {
                     store.present(error)
                 }
             } label: {
+                // VoiceOver reads the spoken duration, not "20:00". The
+                // visible text keeps the compact mm:ss form; the spoken
+                // label overrides for screen readers only.
                 Label(
                     "Start \(TimerDisplayFormatter.string(duration)) timer",
                     systemImage: "timer"
@@ -160,6 +167,7 @@ struct CookModeView: View {
                 .frame(maxWidth: .infinity, minHeight: 56)
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityLabel("Start step timer, \(TimerNarration.durationLabel(duration))")
             .accessibilityIdentifier("Start step timer")
         }
     }
@@ -204,30 +212,45 @@ struct CookModeView: View {
 
 private struct TimerTile: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.colorScheme) private var colorScheme
     let timer: CookTimer
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = timer.remaining(at: context.date)
+            let state = TimerNarration.visualState(status: timer.status, remaining: remaining)
             VStack(alignment: .leading, spacing: 10) {
                 Text(timer.stepName)
                     .font(.headline)
                     .lineLimit(2)
-                Text(TimerDisplayFormatter.string(timer.remaining(at: context.date)))
+                Text(TimerDisplayFormatter.string(remaining))
                     .font(.system(.title, design: .monospaced).bold())
+                    .foregroundStyle(timerColor(for: state))
+                    // VoiceOver gets the spoken form ("1 minute 20 seconds
+                    // remaining, running") plus the state word, so timer
+                    // state changes are meaningful — not just a digit
+                    // string re-read on every tick.
+                    .accessibilityLabel("\(timer.stepName) timer")
+                    .accessibilityValue("\(TimerNarration.remaining(remaining)), \(state.accessibilityWord)")
                     .accessibilityIdentifier("Timer remaining \(timer.id.uuidString)")
                 HStack {
                     if timer.status == .running {
                         Button("Pause") { store.pauseTimer(id: timer.id) }
+                            .frame(minWidth: 44, minHeight: 44)
                             .accessibilityIdentifier("Pause timer")
                     } else {
                         Button("Resume") { store.resumeTimer(id: timer.id) }
+                            .frame(minWidth: 44, minHeight: 44)
                             .accessibilityIdentifier("Resume timer")
                     }
                     Button("+2") { store.extendTimer(id: timer.id, seconds: 120) }
+                        .frame(minWidth: 44, minHeight: 44)
                         .accessibilityLabel("Extend timer by 2 minutes")
                     Button("+5") { store.extendTimer(id: timer.id, seconds: 300) }
+                        .frame(minWidth: 44, minHeight: 44)
                         .accessibilityLabel("Extend timer by 5 minutes")
                     Button("Cancel", role: .destructive) { store.cancelTimer(id: timer.id) }
+                        .frame(minWidth: 44, minHeight: 44)
                         .accessibilityIdentifier("Cancel timer")
                 }
                 .buttonStyle(.bordered)
@@ -236,6 +259,21 @@ private struct TimerTile: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("Timer \(timer.id.uuidString)")
+        }
+    }
+
+    /// WCAG-AA measured state colors (see TimerStatePalette). Running and
+    /// paused ride the primary label color — the state is spoken in the
+    /// accessibility value, so color is never the only carrier.
+    private func timerColor(for state: TimerVisualState) -> Color {
+        let isDark = colorScheme == .dark
+        switch state {
+        case .nearZero:
+            return TimerStatePalette.nearZeroText(isDark: isDark)
+        case .done:
+            return TimerStatePalette.doneText(isDark: isDark)
+        case .running, .paused, .cancelled:
+            return TimerStatePalette.runningText(isDark: isDark)
         }
     }
 }

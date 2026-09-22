@@ -4,6 +4,7 @@ struct ContentView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.sizeCategory) private var sizeCategory
 
     var body: some View {
         Group {
@@ -17,6 +18,7 @@ struct ContentView: View {
         .onAppear(perform: syncConsoleLayout)
         .onChange(of: horizontalSizeClass) { _, _ in syncConsoleLayout() }
         .safeAreaInset(edge: .top) { rootConsoleStrip }
+        .safeAreaInset(edge: .top) { sizeCategoryReadout }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.reconcileTimers() }
         }
@@ -25,6 +27,26 @@ struct ContentView: View {
             Button("OK") { store.errorMessage = nil }
         } message: {
             Text(store.errorMessage ?? "")
+        }
+    }
+
+    /// Issue #7 evidence hook: with `-ui-testing-report-size-category` the
+    /// RESOLVED Dynamic Type category is rendered as a caption strip so a
+    /// UI test can prove the `-UIPreferredContentSizeCategoryName` launch
+    /// override actually took effect (a wrong constant otherwise fails
+    /// silently at default size). Mounted via a second top safe-area inset
+    /// (top insets are proven-safe per the #5 {-1,-1} lesson) and never
+    /// mounted without the flag, so every other suite's hierarchy is
+    /// byte-identical.
+    @ViewBuilder
+    private var sizeCategoryReadout: some View {
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing-report-size-category") {
+            Text(String(describing: sizeCategory))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
+                .accessibilityIdentifier("Size category readout")
         }
     }
 

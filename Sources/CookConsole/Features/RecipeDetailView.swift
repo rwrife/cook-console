@@ -29,8 +29,13 @@ struct RecipeDetailView: View {
                             VStack {
                                 Text(RecipeAmountFormatter.string(targetServings))
                                     .font(.title2.bold())
+                                    // "Servings, 4" — a bare "4" is not
+                                    // meaningful when rotor-focused.
+                                    .accessibilityLabel("Servings")
+                                    .accessibilityValue(RecipeAmountFormatter.string(targetServings))
                                 Text("servings")
                                     .foregroundStyle(.secondary)
+                                    .accessibilityHidden(true)
                             }
                             Spacer()
 
