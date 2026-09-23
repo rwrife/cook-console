@@ -136,8 +136,15 @@ final class AccessibilityUITests: XCTestCase {
             readout.waitForExistence(timeout: 10),
             "Size-category readout never mounted.\n\(app.debugDescription)"
         )
+        // The readout renders the resolved ContentSizeMode description.
+        // On the iOS 26 SDK that is the abbreviation form (default "L",
+        // accessibility sizes prefixed "A"), so "AXXXL" proves the
+        // Accessibility-XXXL launch override resolved. Accept the full
+        // UICTContentSizeCategory wording too in case a future SDK
+        // changes the description format.
+        let resolved = readout.label.lowercased()
         XCTAssertTrue(
-            readout.label.lowercased().contains("accessibility"),
+            resolved.contains("axxxl") || resolved.contains("accessibility"),
             "Resolved size category must be an accessibility category: \(readout.label)"
         )
 
