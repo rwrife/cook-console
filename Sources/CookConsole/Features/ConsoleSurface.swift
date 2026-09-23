@@ -170,26 +170,30 @@ private struct ConsoleTimerTile: View {
 
                 HStack(spacing: 4) {
                     if timer.status == .running {
-                        Button("Pause") { store.pauseTimer(id: timer.id) }
-                            .frame(minWidth: 44, minHeight: 44)
-                            .accessibilityIdentifier("Pause timer")
+                        Button { store.pauseTimer(id: timer.id) } label: {
+                            Text("Pause").frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityIdentifier("Pause timer")
                     } else {
-                        Button("Resume") { store.resumeTimer(id: timer.id) }
-                            .frame(minWidth: 44, minHeight: 44)
-                            .accessibilityIdentifier("Resume timer")
+                        Button { store.resumeTimer(id: timer.id) } label: {
+                            Text("Resume").frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityIdentifier("Resume timer")
                     }
-                    Button("+2") { store.extendTimer(id: timer.id, seconds: 120) }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityLabel("Extend timer by 2 minutes")
-                    Button("+5") { store.extendTimer(id: timer.id, seconds: 300) }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityLabel("Extend timer by 5 minutes")
-                    Button("Cancel", role: .destructive) { store.cancelTimer(id: timer.id) }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityIdentifier("Cancel timer")
+                    Button { store.extendTimer(id: timer.id, seconds: 120) } label: {
+                        Text("+2").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel("Extend timer by 2 minutes")
+                    Button { store.extendTimer(id: timer.id, seconds: 300) } label: {
+                        Text("+5").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel("Extend timer by 5 minutes")
+                    Button(role: .destructive) { store.cancelTimer(id: timer.id) } label: {
+                        Text("Cancel").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityIdentifier("Cancel timer")
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.small)
             }
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)

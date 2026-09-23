@@ -41,7 +41,12 @@ struct ContentView: View {
     @ViewBuilder
     private var sizeCategoryReadout: some View {
         if ProcessInfo.processInfo.arguments.contains("-ui-testing-report-size-category") {
-            Text(String(describing: sizeCategory))
+            // rawValue is the UICTContentSizeCategory string (e.g.
+            // "UICTContentSizeCategoryAccessibilityXXXL"). The
+            // description of ContentSizeMode is the terse "AXXXL"
+            // abbreviation, which a substring check for "accessibility"
+            // cannot match.
+            Text(sizeCategory.rawValue)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
