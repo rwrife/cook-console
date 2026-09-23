@@ -110,6 +110,23 @@ final class AppStore: ObservableObject {
                         ]
                     ))
                 }
+                if ProcessInfo.processInfo.arguments.contains("-ui-testing-a11y-recipe-fixture") {
+                    // Issue #7 narration fixture: a tagged recipe so the
+                    // library row's spoken value (tags) and the detail
+                    // servings readout can be asserted through AX labels
+                    // and values.
+                    try recipeRepository.create(Recipe(
+                        title: "A11y Soup",
+                        servings: 4,
+                        ingredients: [
+                            try Ingredient(name: "Water", amount: 2, unit: .cup),
+                        ],
+                        steps: [
+                            try RecipeStep(instruction: "Simmer gently.", timerDuration: 600),
+                        ],
+                        tags: ["weeknight"]
+                    ))
+                }
                 let scheduler = NoopTimerNotificationScheduler()
                 return AppStore(
                     repository: recipeRepository,
@@ -569,6 +586,12 @@ final class AppStore: ObservableObject {
             guard let timer = try timerEngine.pendingCompletions().first else { return }
             presentedCompletionID = timer.id
             completedTimerMessage = "\(timer.stepName) timer finished."
+            // Issue #7: tactile confirmation the moment the completion
+            // alert's message becomes live (both alert surfaces present
+            // from here, so this is the single choke point). UIKit's
+            // feedback generators honor the system "System Haptics"
+            // toggle — no app-side setting needed.
+            CookHaptics.timerFinished()
         } catch {
             present(error)
         }

@@ -147,49 +147,73 @@ private struct ConsoleStepCard: View {
 /// "Cancel timer", "Timer remaining <id>", "Timer <id>").
 private struct ConsoleTimerTile: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.colorScheme) private var colorScheme
     let timer: CookTimer
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = timer.remaining(at: context.date)
+            let state = TimerNarration.visualState(status: timer.status, remaining: remaining)
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(timer.stepName)
                         .font(.headline)
                         .lineLimit(1)
-                    Text(TimerDisplayFormatter.string(timer.remaining(at: context.date)))
+                    Text(TimerDisplayFormatter.string(remaining))
                         .font(.system(.title3, design: .monospaced).bold())
+                        .foregroundStyle(timerColor(for: state))
+                        .accessibilityLabel("\(timer.stepName) timer")
+                        .accessibilityValue("\(TimerNarration.remaining(remaining)), \(state.accessibilityWord)")
                         .accessibilityIdentifier("Timer remaining \(timer.id.uuidString)")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 4) {
                     if timer.status == .running {
-                        Button("Pause") { store.pauseTimer(id: timer.id) }
-                            .frame(minWidth: 44, minHeight: 44)
-                            .accessibilityIdentifier("Pause timer")
+                        Button { store.pauseTimer(id: timer.id) } label: {
+                            Text("Pause").frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityIdentifier("Pause timer")
                     } else {
-                        Button("Resume") { store.resumeTimer(id: timer.id) }
-                            .frame(minWidth: 44, minHeight: 44)
-                            .accessibilityIdentifier("Resume timer")
+                        Button { store.resumeTimer(id: timer.id) } label: {
+                            Text("Resume").frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityIdentifier("Resume timer")
                     }
-                    Button("+2") { store.extendTimer(id: timer.id, seconds: 120) }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityLabel("Extend timer by 2 minutes")
-                    Button("+5") { store.extendTimer(id: timer.id, seconds: 300) }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityLabel("Extend timer by 5 minutes")
-                    Button("Cancel", role: .destructive) { store.cancelTimer(id: timer.id) }
-                        .frame(minWidth: 44, minHeight: 44)
-                        .accessibilityIdentifier("Cancel timer")
+                    Button { store.extendTimer(id: timer.id, seconds: 120) } label: {
+                        Text("+2").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel("Extend timer by 2 minutes")
+                    Button { store.extendTimer(id: timer.id, seconds: 300) } label: {
+                        Text("+5").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityLabel("Extend timer by 5 minutes")
+                    Button(role: .destructive) { store.cancelTimer(id: timer.id) } label: {
+                        Text("Cancel").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .accessibilityIdentifier("Cancel timer")
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.small)
             }
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 12))
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("Timer \(timer.id.uuidString)")
+        }
+    }
+
+    /// Same WCAG-AA state tokens as CookModeView's TimerTile; both console
+    /// surfaces must speak and look the same for state changes.
+    private func timerColor(for state: TimerVisualState) -> Color {
+        let isDark = colorScheme == .dark
+        switch state {
+        case .nearZero:
+            return TimerStatePalette.nearZeroText(isDark: isDark)
+        case .done:
+            return TimerStatePalette.doneText(isDark: isDark)
+        case .running, .paused, .cancelled:
+            return TimerStatePalette.runningText(isDark: isDark)
         }
     }
 }

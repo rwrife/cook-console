@@ -76,7 +76,12 @@ struct RecipeLibraryContent: View {
                             }
                         }
                     }
+                    // Title as the label, tags as the value: the earlier
+                    // bare `.accessibilityLabel(title)` replaced the row's
+                    // combined narration, hiding tags from VoiceOver.
                     .accessibilityLabel(recipe.title)
+                    .accessibilityValue(recipe.tags.isEmpty ? "no tags" : recipe.tags.joined(separator: ", "))
+                    .accessibilityIdentifier("Recipe row \(recipe.title)")
                 }
                 .accessibilityIdentifier("Recipe browser")
             }
