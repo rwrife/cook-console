@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -35,6 +35,7 @@
 		9BFC0A1B18250585D2DE2C77 /* DataOwnershipUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F66119CC3FAF97FCE22434F5 /* DataOwnershipUITests.swift */; };
 		A37731AE1883FE02EF26E6BB /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = A3F8515DFA115B6C17A646E8 /* GRDB */; };
 		AAE6881B468D5AA3FBDBA7F9 /* CookConsoleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 435F0B22AEBE08AEE819946A /* CookConsoleApp.swift */; };
+		ABCDEF001122334455667701 /* Resources/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ABCDEF001122334455667702 /* Resources/Assets.xcassets */; };
 		AFD1B0F8195F43851036BF58 /* CookHaptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4AC07AFDE4EBD4C45EAE895 /* CookHaptics.swift */; };
 		B188A4AAEDABA52DC561FC14 /* CookProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E28F90350FB33242B31A325 /* CookProgressTests.swift */; };
 		B2DDB5EC6F380D94423F0A78 /* AppStoreQueryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C27A650D2F60665933CCC0C /* AppStoreQueryTests.swift */; };
@@ -106,6 +107,7 @@
 		8EFEC38797BEAC5A7FD711C2 /* RecipeRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RecipeRepository.swift; path = Sources/CookConsole/Data/RecipeRepository.swift; sourceTree = "<group>"; };
 		99289545AFA7641AE5D3C12A /* ScalingEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ScalingEngine.swift; path = Sources/CookConsole/Domain/ScalingEngine.swift; sourceTree = "<group>"; };
 		A044D720F607C52FD39EA62A /* CookModeView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CookModeView.swift; path = Sources/CookConsole/Features/CookModeView.swift; sourceTree = "<group>"; };
+		ABCDEF001122334455667702 /* Resources/Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
 		B483A6429A9ADF790CFA3EB8 /* ScalingEngineTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ScalingEngineTests.swift; path = Tests/CookConsoleTests/ScalingEngineTests.swift; sourceTree = "<group>"; };
 		B60DEFB83082CA1E678EA2C1 /* CookConsoleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CookConsoleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B7ED15962D67B6B2F2C07AD9 /* YourDataView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = YourDataView.swift; path = Sources/CookConsole/Features/YourDataView.swift; sourceTree = "<group>"; };
@@ -183,6 +185,7 @@
 		CC339BF7A3C274D14F5D9DFF = {
 			isa = PBXGroup;
 			children = (
+				ABCDEF001122334455667702 /* Resources/Assets.xcassets */,
 				27F933D9CEFA1760361806F9 /* Products */,
 				5AE4767B7CD29B70C881CD9C /* Frameworks */,
 				2F37571FAEC36D99956328BF /* AppInfo.swift */,
@@ -311,11 +314,9 @@
 				Base,
 			);
 			mainGroup = CC339BF7A3C274D14F5D9DFF;
-			minimizedProjectReferenceProxies = 0;
 			packageReferences = (
 				78E890D444913E8681A95FAB /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 			);
-			preferredProjectObjectVersion = 100;
 			productRefGroup = 27F933D9CEFA1760361806F9 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -339,6 +340,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ABCDEF001122334455667701 /* Resources/Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -441,18 +443,27 @@
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2ES87W257J;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole;
 				PRODUCT_NAME = CookConsole;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -573,18 +584,27 @@
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2ES87W257J;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.infinityball.cookconsole;
 				PRODUCT_NAME = CookConsole;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

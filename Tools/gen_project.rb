@@ -19,6 +19,8 @@ app.add_file_references(
   Dir['Sources/CookConsole/**/*.swift'].sort.map { |f| project.main_group.new_file(f) }
 )
 
+app.resources_build_phase.add_file_reference(project.main_group.new_file('Resources/Assets.xcassets'))
+
 # --- Unit test target ------------------------------------------------------
 tests = project.new_target(:unit_test_bundle, 'CookConsoleTests', :ios, '26.0')
 tests.add_file_references(
@@ -75,6 +77,7 @@ end
 app.build_configurations.each do |c|
   c.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.infinityball.cookconsole'
   c.build_settings['PRODUCT_NAME'] = 'CookConsole'
+  c.build_settings['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
   c.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
   c.build_settings['INFOPLIST_KEY_UIApplicationSceneManifest_Generation'] = 'YES'
   c.build_settings['INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents'] = 'YES'

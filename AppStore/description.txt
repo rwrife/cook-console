@@ -1,0 +1,23 @@
+Make room for the cooking.
+
+Cook Console keeps your recipes, next steps, and kitchen timers together, so you can spend less time navigating your phone and more time making a great meal.
+
+YOUR OWN RECIPE COLLECTION
+Create recipes with ingredients, directions, and step timers. Bring in plain-text recipes, mark your favorites, and find what you need with title search and tags.
+
+SCALE TO YOUR TABLE
+Adjust the number of servings and see ingredient quantities update instantly. Reset to the original recipe whenever you need to.
+
+COOK ONE STEP AT A TIME
+Follow clear, large instructions with simple back and next controls. A compact console keeps your current and upcoming steps close at hand. Return to the full recipe without losing your place.
+
+KEEP EVERY TIMER IN VIEW
+Run multiple named timers tied to recipe steps. Pause, resume, or add time as dinner comes together. Optional local notifications let you know when a timer finishes; on-screen alerts are available while the app is open.
+
+YOUR RECIPES STAY YOURS
+Cook Console works locally, without an account, ads, analytics, or cloud sync. Export a JSON backup of your recipes and cooking history, restore from a backup, or export cook history as CSV.
+
+MADE FOR YOUR KITCHEN
+A focused phone layout, Dynamic Type, VoiceOver support, and generous controls help keep cooking comfortable.
+
+From a quick weeknight meal to a weekend batch cook, keep the next step within reach.
