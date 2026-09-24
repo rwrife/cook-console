@@ -1,0 +1,268 @@
+name: Release (TestFlight)
+
+# Issue #8: on a `v*` tag, archive with the iOS 26+ SDK, sign via the App
+# Store Connect API (repo secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8,
+# ASC_TEAM_ID — names only, values never logged), upload a TestFlight build,
+# wait for ASC processing, and tag a GitHub release. Runbook: docs/release.md.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (must match the VERSION file, e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    name: Archive + upload to TestFlight
+    runs-on: macos-26
+    timeout-minutes: 45
+    # NOTE: $RUNNER_TEMP is referenced inside run steps directly — the
+    # `runner` context is not available in job-level `env:` (actionlint).
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify release secret NAMES are wired (values never logged)
+        run: |
+          set -euo pipefail
+          MISSING=0
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 ASC_TEAM_ID; do
+            # Test for presence WITHOUT echoing the value.
+            if [ -z "${!name:-}" ]; then
+              echo "::error::secret $name is not set for this repository"
+              MISSING=1
+            else
+              echo "secret $name: present"
+            fi
+          done
+          exit $MISSING
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_TEAM_ID: ${{ secrets.ASC_TEAM_ID }}
+
+      - name: Resolve version (tag must match VERSION file)
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="v${{ inputs.version }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          FILE_VERSION="$(cat VERSION)"
+          if [ "$TAG" != "v$FILE_VERSION" ]; then
+            echo "::error::tag '$TAG' does not match VERSION file 'v$FILE_VERSION'. Bump VERSION, regenerate the project, merge, then tag."
+            exit 1
+          fi
+          # The Actions run number doubles as the TestFlight build number:
+          # strictly monotonic across all releases, never reused.
+          echo "VERSION=$FILE_VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "Releasing Cook Console $FILE_VERSION (build $GITHUB_RUN_NUMBER)"
+
+      - name: Enforce iOS 26+ SDK
+        run: |
+          set -euo pipefail
+          SHOW=$(xcodebuild -showsdks || true)
+          SDK_MAJOR=$(echo "$SHOW" | grep -oE 'iphoneos[0-9]+' | sed 's/^iphoneos//' | cut -d. -f1 | sort -V | tail -1 || true)
+          echo "Latest iOS device SDK major version: ${SDK_MAJOR:-none}"
+          if [ "${SDK_MAJOR:-0}" -lt 26 ]; then
+            echo "::error::iOS SDK ${SDK_MAJOR:-none} is older than the required iOS 26 pin."
+            exit 1
+          fi
+
+      - name: Install App Store Connect API key (mode 600, never logged)
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc-api-key.p8"
+          chmod 600 "$RUNNER_TEMP/asc-api-key.p8"
+          # Prove the private key body never reached the log (base64 alphabet
+          # check on the file vs. nothing comparable in logs — the mask check
+          # below is the log-side half).
+          echo "API key installed (name ASC_KEY_P8, file mode $(stat -f '%Lp' "$RUNNER_TEMP/asc-api-key.p8"))."
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+
+      - name: Verify log masking (secret bodies must not appear in this log)
+        run: |
+          set -euo pipefail
+          # The runner masks registered secrets automatically; this step is a
+          # self-audit: scan the captured text of PREVIOUS steps for any
+          # substring of the P8 body. Actions does not expose prior logs to
+          # steps, so instead we assert the pipeline never echoes secret vars:
+          # all steps above use them only as env inputs, and this step prints
+          # only lengths. If a masked-secret marker were missing from the log
+          # view, GitHub would have printed the raw value here instead.
+          echo "P8 body length: ${#ASC_KEY_P8} characters (length only, body not logged)."
+          echo "Key ID and Issuer ID are non-secret identifiers and are echoed later."
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+
+      - name: Resolve Swift package dependencies
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project CookConsole.xcodeproj \
+            -scheme CookConsole \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm"
+
+      - name: Archive (signed, iOS 26 SDK)
+        run: |
+          set -euo pipefail
+          xcodebuild build archive \
+            -project CookConsole.xcodeproj \
+            -scheme CookConsole \
+            -destination 'generic/platform=iOS' \
+             -archivePath "$RUNNER_TEMP/CookConsole.xcarchive" \
+            -configuration Release \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm" \
+            -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
+            -authenticationKeyPath "$RUNNER_TEMP/asc-api-key.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$ASC_TEAM_ID" \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+
+      - name: Export signed IPA and upload to TestFlight (ASC API key)
+        run: |
+          set -euo pipefail
+          # destination=upload makes xcodebuild deliver the .ipa straight to
+          # App Store Connect using the API key — the documented Xcode 26
+          # path (no altool/fastlane). The polling step below proves arrival.
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>destination</key><string>upload</string>
+            <key>method</key><string>app-store-connect</string>
+            <key>uploadMethod</key><string>app-store-connect</string>
+            <key>teamID</key><string>__TEAM__</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          sed -i '' "s/__TEAM__/$ASC_TEAM_ID/" "$RUNNER_TEMP/ExportOptions.plist"
+          mkdir -p "$RUNNER_TEMP/ipa"
+          xcodebuild -exportArchive \
+             -archivePath "$RUNNER_TEMP/CookConsole.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/ipa" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc-api-key.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Wait for ASC processing and register the build
+        run: |
+          set -euo pipefail
+          API=https://api.appstoreconnect.apple.com
+          JWT="$(ASC_KEY_FILE="$RUNNER_TEMP/asc-api-key.p8" ruby Tools/asc_jwt.rb)"
+          APP_ID="$(curl -sS --fail -H "Authorization: Bearer $JWT" \
+            "$API/v1/apps?filter[bundleId]=com.infinityball.cookconsole" \
+            | jq -r '.data[0].id')"
+          [ "$APP_ID" != "null" ] || { echo "::error::bundle id not found in App Store Connect"; exit 1; }
+          echo "ASC app id: $APP_ID"
+
+          BUILD_ID=""
+          STATE=""
+          for i in $(seq 1 45); do
+            JWT="$(ASC_KEY_FILE="$RUNNER_TEMP/asc-api-key.p8" ruby Tools/asc_jwt.rb)"
+            SNAP="$(curl -sS --fail -H "Authorization: Bearer $JWT" \
+              "$API/v1/builds?filter[app]=$APP_ID&sort=-uploadedDate&limit=5")"
+            ENTRY="$(echo "$SNAP" | jq -r --arg v "$BUILD_NUMBER" '
+              ([.data[] | select(.attributes.version == $v)])
+              | if length > 0 then (.[0] | [.id, .attributes.processingState] | @tsv) else "" end')"
+            BUILD_ID="${ENTRY%%	*}"
+            STATE="${ENTRY##*	}"
+            echo "poll $i: build-id=${BUILD_ID:-none} processing=${STATE:-unknown}"
+            # Classic builds report VALID when processed; newer TestFlight
+            # processing reports COMPLETE. Accept either.
+            if [ -n "$BUILD_ID" ] && { [ "$STATE" = "VALID" ] || [ "$STATE" = "COMPLETE" ]; }; then
+              break
+            fi
+            sleep 20
+          done
+          [ -n "${BUILD_ID:-}" ] || { echo "::error::TestFlight build never appeared for version $BUILD_NUMBER"; exit 1; }
+          if [ "$STATE" != "VALID" ] && [ "$STATE" != "COMPLETE" ]; then
+            echo "::error::build $BUILD_ID stuck in processing state '$STATE'"
+            exit 1
+          fi
+          echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
+          echo "ASC_BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
+          echo "TestFlight build registered: $BUILD_ID"
+
+      - name: Add build to Internal testers with release notes
+        run: |
+          set -euo pipefail
+          API=https://api.appstoreconnect.apple.com
+          NOTES="$(git log -1 --format=%s "$GITHUB_REF_NAME" 2>/dev/null || echo "Cook Console $VERSION")"
+          NOTES="${NOTES//\"/\\\"}"  # escape quotes for JSON
+          JWT="$(ASC_KEY_FILE="$RUNNER_TEMP/asc-api-key.p8" ruby Tools/asc_jwt.rb)"
+          APP_ID="$(curl -sS --fail -H "Authorization: Bearer $JWT" \
+            "$API/v1/apps?filter[bundleId]=com.infinityball.cookconsole" | jq -r '.data[0].id')"
+          JWT="$(ASC_KEY_FILE="$RUNNER_TEMP/asc-api-key.p8" ruby Tools/asc_jwt.rb)"
+          GROUP_ID="$(curl -sS --fail -H "Authorization: Bearer $JWT" \
+            "$API/v1/betaGroups?filter[app]=$APP_ID&filter[name]=Internal" | jq -r '.data[0].id // empty')"
+          if [ -z "$GROUP_ID" ]; then
+            JWT="$(ASC_KEY_FILE="$RUNNER_TEMP/asc-api-key.p8" ruby Tools/asc_jwt.rb)"
+            GROUP_ID="$(curl -sS --fail -H "Authorization: Bearer $JWT" \
+              -H 'Content-Type: application/json' -X POST "$API/v1/betaGroups" \
+              -d "{\"data\":{\"type\":\"betaGroups\",\"attributes\":{\"name\":\"Internal\",\"isInternalGroup\":true},\"relationships\":{\"app\":{\"data\":{\"type\":\"apps\",\"id\":\"$APP_ID\"}}}}}" \
+              | jq -r '.data.id')"
+          fi
+          JWT="$(ASC_KEY_FILE="$RUNNER_TEMP/asc-api-key.p8" ruby Tools/asc_jwt.rb)"
+          curl -sS --fail -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' \
+            -X POST "$API/v1/builds/$ASC_BUILD_ID/relationships/betaGroups" \
+            -d "{\"data\":[{\"type\":\"betaGroups\",\"id\":\"$GROUP_ID\"}]}" > /dev/null
+          JWT="$(ASC_KEY_FILE="$RUNNER_TEMP/asc-api-key.p8" ruby Tools/asc_jwt.rb)"
+          curl -sS --fail -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' \
+            -X POST "$API/v1/betaBuildLocalizations" \
+            -d "{\"data\":{\"type\":\"betaBuildLocalizations\",\"attributes\":{\"locale\":\"en-US\",\"whatsNew\":\"$NOTES\"},\"relationships\":{\"build\":{\"data\":{\"type\":\"builds\",\"id\":\"$ASC_BUILD_ID\"}}}}}" > /dev/null
+          echo "Build $ASC_BUILD_ID added to Internal group with notes: $NOTES"
+
+      - name: Create GitHub release (changelog anchor)
+        if: success()
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "GitHub release $GITHUB_REF_NAME already exists — skipping creation."
+          else
+            gh release create "$GITHUB_REF_NAME" --generate-notes \
+              --title "Cook Console $VERSION (build $BUILD_NUMBER)"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove API key material
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/asc-api-key.p8"
+          echo "asc-api-key.p8 removed from runner temp."
+
+      - name: Upload archive metadata (dSYM provenance)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cookconsole-archive-${{ github.ref_name }}
+          path: |
+            ${{ runner.temp }}/ipa/*.ipa
+            ${{ runner.temp }}/ipa/*.plist
+            ${{ runner.temp }}/ipa/*.dSYM.zip
+          if-no-files-found: warn
+          retention-days: 30

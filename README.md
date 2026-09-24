@@ -70,20 +70,21 @@ The project is an **iPhone Duo dual-screen design target**: on the dual-screen d
 - **Design target**: dual-screen spanned layout — console surface on the secondary display, detail on the primary, with continuity when folding/unfolding (session state and timer set survive the transition).
 - **Build shape today**: standard SwiftUI iOS app with size-class-adaptive layouts. Compact width = single-column with pinned console strip; regular width (iPad/unfolded) = two-column console + detail. This is the exact layout the dual-screen migration will bind to the second display once Apple's fold APIs ship — no screen-management APIs are used now.
 - **iOS SDK**: iOS 26 SDK or newer is required for builds and CI.
-- **Bundle ID**: `com.infinityball.cookconsole` — registered in App Store Connect (result: `CREATED com.infinityball.cookconsole`). Signing/TestFlight releases use the App Store Connect API Actions secrets already configured on this repo (`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `ASC_TEAM_ID` — names only, values never shown).
+- **Bundle ID**: `com.infinityball.cookconsole` — registered in App Store Connect (result: `CREATED com.infinityball.cookconsole`). Signing/TestFlight releases use the App Store Connect API Actions secrets already configured on this repo (`ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `ASC_TEAM_ID` — names only, values never shown). Release procedure: [`docs/release.md`](docs/release.md).
 
 ## Current status & milestones
 
-- **Status:** M1/M2 plus the recipe library, editor, serving scaler, persisted
-  step-by-step cook workflow, and concurrent per-step timers are implemented.
-  Broader history UI, export, adaptive console work, and device verification
-  remain future milestones.
+- **Status:** All MVP feature milestones (M1–M6) are implemented: recipe
+  library/editor/scaler, cook mode with concurrent timers, adaptive
+  console/detail split, JSON/CSV export-import, accessibility hardening,
+  and the TestFlight release pipeline. Broader history UI and device
+  verification remain future work.
 - M1: Xcode project skeleton (iOS 26 SDK, SwiftUI), CI build, unit-test target. **Complete.**
 - M2: Pure recipe domain, GRDB recipe store, servings scaling, and plain-text recipe parser with tests. **Complete for issue #2; history belongs to later session work.**
 - M3: Cook mode + step timers + notifications. **Timer scope complete; broader history remains.**
-- M4: Adaptive console/detail layout (regular-width two-column = Duo migration target).
-- M5: Import/export/backup + privacy review.
-- M6: Accessibility hardening + TestFlight release pipeline.
+- M4: Adaptive console/detail layout (regular-width two-column = Duo migration target). **Complete (#5).**
+- M5: Import/export/backup + privacy review. **Complete (#6).**
+- M6: Accessibility hardening + TestFlight release pipeline. **Hardening complete (#7); release pipeline ships with #8 — first tagged build is the live proof.**
 
 ## Development quickstart
 
