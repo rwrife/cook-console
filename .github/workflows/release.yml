@@ -191,13 +191,18 @@ jobs:
             BUILD_ID="${ENTRY%%	*}"
             STATE="${ENTRY##*	}"
             echo "poll $i: build-id=${BUILD_ID:-none} processing=${STATE:-unknown}"
-            if [ -n "$BUILD_ID" ] && [ "$STATE" = "VALID" ]; then
+            # Classic builds report VALID when processed; newer TestFlight
+            # processing reports COMPLETE. Accept either.
+            if [ -n "$BUILD_ID" ] && { [ "$STATE" = "VALID" ] || [ "$STATE" = "COMPLETE" ]; }; then
               break
             fi
             sleep 20
           done
           [ -n "${BUILD_ID:-}" ] || { echo "::error::TestFlight build never appeared for version $BUILD_NUMBER"; exit 1; }
-          [ "$STATE" = "VALID" ] || { echo "::error::build $BUILD_ID stuck in processing state '$STATE'"; exit 1; }
+          if [ "$STATE" != "VALID" ] && [ "$STATE" != "COMPLETE" ]; then
+            echo "::error::build $BUILD_ID stuck in processing state '$STATE'"
+            exit 1
+          fi
           echo "BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
           echo "ASC_BUILD_ID=$BUILD_ID" >> "$GITHUB_ENV"
           echo "TestFlight build registered: $BUILD_ID"
