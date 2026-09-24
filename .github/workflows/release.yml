@@ -27,6 +27,15 @@ jobs:
     timeout-minutes: 45
     # NOTE: $RUNNER_TEMP is referenced inside run steps directly — the
     # `runner` context is not available in job-level `env:` (actionlint).
+    # ASC secret env is JOB-LEVEL: archive/export/poll/beta-group steps all
+    # consume ASC_KEY_ID / ASC_ISSUER_ID / ASC_TEAM_ID, and asc_jwt.rb reads
+    # the IDs from env too. Step-level-only env left them unbound (run
+    # 35954410638: `ASC_KEY_ID: unbound variable` under set -u).
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      ASC_TEAM_ID: ${{ secrets.ASC_TEAM_ID }}
 
     steps:
       - uses: actions/checkout@v4
