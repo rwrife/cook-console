@@ -43,6 +43,10 @@ grdb_pin = resolved.fetch('pins').find { |pin| pin.fetch('identity') == 'grdb.sw
 raise 'GRDB.swift is missing from Package.resolved' unless grdb_pin
 grdb_revision = grdb_pin.fetch('state').fetch('revision')
 
+# Release version seed (docs/release.md).
+marketing_version = File.read('VERSION').strip
+raise 'VERSION file is empty' if marketing_version.empty?
+
 grdb_package = project.new(Xcodeproj::Project::Object::XCRemoteSwiftPackageReference)
 grdb_package.repositoryURL = 'https://github.com/groue/GRDB.swift.git'
 grdb_package.requirement = {
@@ -78,6 +82,13 @@ app.build_configurations.each do |c|
   c.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.infinityball.cookconsole'
   c.build_settings['PRODUCT_NAME'] = 'CookConsole'
   c.build_settings['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
+  c.build_settings['ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME'] = 'AccentColor'
+  # Release versioning (docs/release.md): MARKETING_VERSION is seeded from
+  # the repo-root VERSION file; the release workflow overrides
+  # CURRENT_PROJECT_VERSION with the Actions run number for monotonic
+  # TestFlight build numbers.
+  c.build_settings['MARKETING_VERSION'] = marketing_version
+  c.build_settings['CURRENT_PROJECT_VERSION'] = '1'
   c.build_settings['GENERATE_INFOPLIST_FILE'] = 'YES'
   c.build_settings['INFOPLIST_KEY_UIApplicationSceneManifest_Generation'] = 'YES'
   c.build_settings['INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents'] = 'YES'
