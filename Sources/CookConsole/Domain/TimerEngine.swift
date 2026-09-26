@@ -224,16 +224,27 @@ final class TimerEngine {
         return newlyCompleted
     }
 
+    /// Re-arms notification requests after a launch/restart. A notification is
+    /// only ever wanted for (a) a running timer whose deadline is still in the
+    /// future, or (b) a completion the user has not acknowledged yet — its
+    /// delivered notification is the user's only actionable +2/+5 surface.
+    /// Anything else (paused, cancelled, expired-but-acknowledged, or an
+    /// overdue running row that reconciliation just completed) is a stale
+    /// request: the durable state was committed but the process may have died
+    /// before UserNotifications received the matching cleanup call, so every
+    /// launch sweeps those requests rather than leaving an actionable
+    /// notification that offers +2/+5 on a dead timer.
     func synchronizeNotifications() throws {
         let currentDate = now()
+        let awaitingAcknowledgment = Set(try repository.fetchPendingCompletions().map(\.id))
         for timer in try repository.fetchTimers() {
             switch timer.status {
             case .running where timer.deadline.map({ $0 > currentDate }) == true:
                 schedule(timer)
-            case .paused:
-                notifications.removePending(timerID: timer.id)
-            case .running, .cancelled, .completed:
+            case .completed where awaitingAcknowledgment.contains(timer.id):
                 break
+            case .running, .paused, .cancelled, .completed:
+                notifications.removeAll(timerID: timer.id)
             }
         }
     }

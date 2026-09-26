@@ -1,8 +1,10 @@
 import SwiftUI
+import UIKit
 
 struct CookModeView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     let recipe: Recipe
 
     @State private var session: CookSession?
@@ -28,15 +30,25 @@ struct CookModeView: View {
 
                                 currentStepTimerControls(progress: progress)
 
-                                if store.notificationAuthorization == .denied,
-                                   !activeTimers.isEmpty {
-                                    Label(
-                                        "Notifications are off. Keep Cook Console open for on-screen timer alerts.",
-                                        systemImage: "bell.slash"
-                                    )
-                                    .font(.callout)
-                                    .foregroundStyle(.orange)
-                                    .accessibilityIdentifier("Timer notification fallback")
+                                if let message = NotificationPermissionGuidance.message(
+                                    for: store.notificationAuthorization
+                                ), !activeTimers.isEmpty {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Label(message, systemImage: "bell.slash")
+                                            .font(.callout)
+                                            .foregroundStyle(.orange)
+                                            .accessibilityIdentifier("Timer notification fallback")
+
+                                        if NotificationPermissionGuidance.showsSettingsLink(
+                                            for: store.notificationAuthorization
+                                        ) {
+                                            Button(NotificationPermissionGuidance.settingsLinkLabel) {
+                                                openNotificationSettings()
+                                            }
+                                            .font(.callout)
+                                            .accessibilityIdentifier(NotificationPermissionGuidance.settingsLinkLabel)
+                                        }
+                                    }
                                 }
 
                                 if !activeTimers.isEmpty {
@@ -174,6 +186,11 @@ struct CookModeView: View {
 
     private var activeTimers: [CookTimer] {
         store.timers.filter { $0.status == .running || $0.status == .paused }
+    }
+
+    private func openNotificationSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(url)
     }
 
     private func moveNext() {

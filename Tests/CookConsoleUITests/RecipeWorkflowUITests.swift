@@ -80,6 +80,7 @@ final class RecipeWorkflowUITests: XCTestCase {
 
         tapWhenHittable(app.buttons["Start step timer"], scrolling: cookScrollView)
         XCTAssertTrue(app.staticTexts["Timer notification fallback"].exists)
+        XCTAssertTrue(app.buttons["Open Notification Settings"].exists)
         tapWhenHittable(app.buttons["Pause timer"], scrolling: cookScrollView)
         tapWhenHittable(app.buttons["Resume timer"], scrolling: cookScrollView)
         tapWhenHittable(app.buttons["Extend timer by 2 minutes"], scrolling: cookScrollView)
