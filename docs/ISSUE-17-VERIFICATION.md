@@ -44,8 +44,8 @@ state lives in GRDB, and the on-screen completion queue is recovered at the
 next launch/foreground activation (`activateTimers` →
 `reconcileExpiredTimers` + `synchronizeNotifications` + queue
 presentation). Absolute persisted deadlines survive termination and device
-restart (covered since #4: `testDatabaseReopenRestoresFutureDeadlineAndFo
-regroundReconcileCompletesIt`).
+restart (covered since #4:
+`testDatabaseReopenRestoresFutureDeadlineAndForegroundReconcileCompletesIt`).
 
 ## Physical-device lock-screen check (AC #4)
 
