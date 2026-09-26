@@ -250,6 +250,88 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertNil(try fixture.engine.nextExpiryDate())
     }
 
+    func testWallClockChangesConvergeWithoutEarlyOrDuplicateCompletion() throws {
+        let fixture = try TimerFixture(now: 3_500)
+        let timer = try fixture.start(stepName: "Roast", duration: 60)
+
+        // Persisted deadlines are absolute dates so they survive termination
+        // and device restart. A wall-clock correction backwards must not fire
+        // the timer before that durable deadline.
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_400)
+        XCTAssertTrue(try fixture.engine.reconcileExpiredTimers().isEmpty)
+        XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .running)
+
+        // A correction forward beyond the deadline is treated as overdue.
+        // Repeated foreground/launch reconciliation remains idempotent.
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_900)
+        XCTAssertEqual(try fixture.engine.reconcileExpiredTimers().map(\.id), [timer.id])
+        XCTAssertTrue(try fixture.engine.reconcileExpiredTimers().isEmpty)
+        XCTAssertEqual(
+            try fixture.repository.fetchEvents(timerID: timer.id).map(\.kind),
+            [.started, .fired]
+        )
+        XCTAssertEqual(try fixture.engine.pendingCompletions().map(\.id), [timer.id])
+    }
+
+    func testLaunchSynchronizationRemovesStaleNotificationsForInactiveTimers() throws {
+        let fixture = try TimerFixture(now: 3_700)
+        let paused = try fixture.start(stepName: "Paused", duration: 60)
+        let cancelled = try fixture.start(stepName: "Cancelled", duration: 90)
+        let acknowledged = try fixture.start(stepName: "Acknowledged", duration: 10)
+
+        _ = try fixture.engine.pause(timerID: paused.id)
+        _ = try fixture.engine.cancel(timerID: cancelled.id)
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_711)
+        _ = try fixture.engine.reconcileExpiredTimers()
+        try fixture.engine.acknowledgeCompletion(timerID: acknowledged.id)
+
+        // Simulate the crash window where durable state was committed but the
+        // process died before UserNotifications received the cleanup call.
+        for timer in [paused, cancelled, acknowledged] {
+            fixture.notifications.schedule(
+                TimerNotification(
+                    timerID: timer.id,
+                    stepName: timer.stepName,
+                    deadline: Date(timeIntervalSince1970: 9_999),
+                    scheduleGeneration: timer.scheduleGeneration
+                ),
+                completion: { _ in }
+            )
+        }
+        XCTAssertEqual(fixture.notifications.scheduled.count, 3)
+
+        try fixture.engine.synchronizeNotifications()
+
+        XCTAssertTrue(fixture.notifications.scheduled.isEmpty)
+        XCTAssertTrue(fixture.notifications.pendingRemoved.isEmpty)
+        XCTAssertEqual(
+            Set(fixture.notifications.allRemoved.suffix(3)),
+            Set([paused.id, cancelled.id, acknowledged.id])
+        )
+    }
+
+    func testLaunchSynchronizationPreservesUnacknowledgedCompletionNotification() throws {
+        let fixture = try TimerFixture(now: 3_800)
+        let timer = try fixture.start(stepName: "Bread", duration: 10)
+        fixture.nowBox.date = Date(timeIntervalSince1970: 3_811)
+        _ = try fixture.engine.reconcileExpiredTimers()
+        fixture.notifications.scheduled.removeAll()
+        fixture.notifications.schedule(
+            TimerNotification(
+                timerID: timer.id,
+                stepName: timer.stepName,
+                deadline: timer.deadline!,
+                scheduleGeneration: timer.scheduleGeneration
+            ),
+            completion: { _ in }
+        )
+
+        try fixture.engine.synchronizeNotifications()
+
+        XCTAssertEqual(fixture.notifications.scheduled.map(\.timerID), [timer.id])
+        XCTAssertEqual(try fixture.engine.pendingCompletions().map(\.id), [timer.id])
+    }
+
     func testDatabaseReopenRestoresFutureDeadlineAndForegroundReconcileCompletesIt() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("cook-console-timer-\(UUID().uuidString)")
