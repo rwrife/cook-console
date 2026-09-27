@@ -197,6 +197,28 @@ enum RecipeDatabase {
                 sql: "ALTER TABLE cook_timers ADD COLUMN schedule_generation INTEGER NOT NULL DEFAULT 0"
             )
         }
+        migrator.registerMigration("v7_create_pantry") { db in
+            try db.create(table: "pantry_items") { table in
+                table.column("id", .text).primaryKey()
+                table.column("name", .text).notNull().check(
+                    sql: "length(trim(name, \(foundationWhitespaceSQL))) > 0"
+                )
+                table.column("kind", .text).notNull().check(
+                    sql: "kind IN ('on_hand', 'staple')"
+                )
+                table.column("created_at", .datetime).notNull()
+                table.uniqueKey(["name", "kind"], onConflict: .ignore)
+            }
+            try db.create(
+                index: "pantry_items_kind_name",
+                on: "pantry_items",
+                columns: ["kind", "name"]
+            )
+            try db.create(table: "app_metadata") { table in
+                table.column("key", .text).primaryKey()
+                table.column("value", .text).notNull()
+            }
+        }
         return migrator
     }
 }

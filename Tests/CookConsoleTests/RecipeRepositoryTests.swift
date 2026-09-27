@@ -78,6 +78,7 @@ final class RecipeRepositoryTests: XCTestCase {
             "v4_create_step_timers",
             "v5_timer_invariants_and_completion_queue",
             "v6_timer_schedule_generation",
+            "v7_create_pantry",
         ])
         let timerColumns = try database.read { db in
             try String.fetchAll(
@@ -94,6 +95,8 @@ final class RecipeRepositoryTests: XCTestCase {
         XCTAssertTrue(tables.contains("cook_timers"))
         XCTAssertTrue(tables.contains("timer_events"))
         XCTAssertTrue(tables.contains("timer_completion_alerts"))
+        XCTAssertTrue(tables.contains("pantry_items"))
+        XCTAssertTrue(tables.contains("app_metadata"))
     }
 
     func testV1DatabaseUpgradesToLatestWithoutLosingRows() throws {

@@ -5,6 +5,9 @@ import SwiftUI
 final class AppStore: ObservableObject {
     @Published private(set) var recipes: [Recipe] = []
     @Published private(set) var allTags: [String] = []
+    @Published private(set) var pantryOnHand: [PantryItem] = []
+    @Published private(set) var pantryStaples: [PantryItem] = []
+    @Published private(set) var pantrySuggestions: [RecipePantrySuggestion] = []
     @Published private(set) var timers: [CookTimer] = []
     @Published private(set) var notificationAuthorization: NotificationAuthorization = .unknown
     @Published var completedTimerMessage: String?
@@ -26,6 +29,7 @@ final class AppStore: ObservableObject {
     @Published private(set) var consoleLayout: ConsoleLayout = .compactStrip
 
     private let repository: RecipeRepository
+    private lazy var pantryRepository = PantryRepository(database: repository.database)
     /// The cook session the console surface currently mirrors, plus the
     /// recipe it belongs to. Set when a cook surface (re)loads its timers.
     private var consoleSession: CookSession?
@@ -127,6 +131,26 @@ final class AppStore: ObservableObject {
                         tags: ["weeknight"]
                     ))
                 }
+                if ProcessInfo.processInfo.arguments.contains("-ui-testing-pantry-fixture") {
+                    try recipeRepository.create(Recipe(
+                        title: "Simple Omelet",
+                        servings: 2,
+                        ingredients: [
+                            try Ingredient(name: "Eggs", amount: 3, unit: .each),
+                            try Ingredient(name: "Salt", amount: 0.25, unit: .teaspoon),
+                        ],
+                        steps: [try RecipeStep(instruction: "Whisk and cook.")]
+                    ))
+                    try recipeRepository.create(Recipe(
+                        title: "Bean Salad",
+                        servings: 2,
+                        ingredients: [
+                            try Ingredient(name: "Chickpeas", amount: 2, unit: .cup),
+                            try Ingredient(name: "Fresh basil", amount: 1, unit: .cup),
+                        ],
+                        steps: [try RecipeStep(instruction: "Mix and serve.")]
+                    ))
+                }
                 let scheduler = NoopTimerNotificationScheduler()
                 return AppStore(
                     repository: recipeRepository,
@@ -154,6 +178,28 @@ final class AppStore: ObservableObject {
         librarySearchText = searchText
         librarySelectedTag = selectedTag
         reloadLibrary()
+    }
+
+    func loadPantrySuggestions() {
+        refreshPantrySuggestions()
+    }
+
+    func addPantryItem(name: String, kind: PantryItemKind) {
+        do {
+            _ = try pantryRepository.add(name: name, kind: kind)
+            refreshPantrySuggestions()
+        } catch {
+            present(error)
+        }
+    }
+
+    func removePantryItem(id: UUID) {
+        do {
+            _ = try pantryRepository.remove(id: id)
+            refreshPantrySuggestions()
+        } catch {
+            present(error)
+        }
     }
 
     // MARK: - Data ownership (issue #6)
@@ -223,6 +269,25 @@ final class AppStore: ObservableObject {
                 seenTags.insert($0.lowercased()).inserted
             }
                 .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            refreshPantrySuggestions()
+        } catch {
+            present(error)
+        }
+    }
+
+    private func refreshPantrySuggestions() {
+        do {
+            try pantryRepository.seedDefaultStaplesIfNeeded()
+            let onHand = try pantryRepository.fetch(kind: .onHand)
+            let staples = try pantryRepository.fetch(kind: .staple)
+            pantryOnHand = onHand
+            pantryStaples = staples
+            let allRecipes = try repository.fetchAll()
+            pantrySuggestions = PantrySuggestionEngine.rank(
+                recipes: allRecipes,
+                pantryNames: onHand.map(\.name),
+                stapleNames: staples.map(\.name)
+            )
         } catch {
             present(error)
         }

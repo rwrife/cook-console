@@ -67,6 +67,46 @@ final class RecipeWorkflowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["No Recipes"].waitForExistence(timeout: 2))
     }
 
+    func testWhatCanIMakeSuggestsRecipesFromPantryAndShowsMissingIngredients() {
+        app.terminate()
+        app.launchArguments = ["-ui-testing-reset", "-ui-testing-pantry-fixture"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["Simple Omelet"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["What Can I Make?"].waitForExistence(timeout: 2))
+        app.buttons["What Can I Make?"].tap()
+
+        XCTAssertTrue(app.staticTexts["Pantry quantity disclaimer"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Assumed Pantry Staples"].exists)
+
+        // Add "eggs" into ingredients on hand
+        let addField = app.textFields["Add pantry ingredient field"]
+        XCTAssertTrue(addField.waitForExistence(timeout: 2))
+        addField.tap()
+        addField.typeText("Eggs")
+        app.buttons["Add pantry ingredient button"].tap()
+
+        // "Simple Omelet" requires Eggs + Salt. Salt is a default staple, so Simple Omelet is Ready!
+        XCTAssertTrue(app.descendants(matching: .any)["Ready badge Simple Omelet"].waitForExistence(timeout: 3))
+
+        // "Bean Salad" requires Chickpeas and Fresh basil -> neither in pantry yet -> 2 missing
+        XCTAssertTrue(app.descendants(matching: .any)["Missing badge Bean Salad"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["Missing list Bean Salad"].label.contains("Chickpeas"))
+
+        // Add conservative alias: "garbanzo beans" should match "Chickpeas"
+        addField.tap()
+        addField.typeText("garbanzo beans")
+        app.buttons["Add pantry ingredient button"].tap()
+
+        // Bean Salad now only has 1 missing (Fresh basil)
+        XCTAssertTrue(app.descendants(matching: .any)["Missing list Bean Salad"].label.contains("Fresh basil"))
+        XCTAssertFalse(app.descendants(matching: .any)["Missing list Bean Salad"].label.contains("Chickpeas"))
+
+        // Tap on Simple Omelet from suggestions to open recipe detail
+        app.buttons["Pantry suggestion Simple Omelet"].tap()
+        XCTAssertTrue(app.navigationBars["Simple Omelet"].waitForExistence(timeout: 3))
+    }
+
     func testStepTimersStartPauseResumeExtendCancelAndRunConcurrently() {
         createRecipe(
             title: "Timed Soup",

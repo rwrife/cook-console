@@ -46,6 +46,7 @@ struct RecipeLibraryContent: View {
     @State private var selectedTag: String?
     @State private var showingCreate = false
     @State private var showingYourData = false
+    @State private var showingPantrySuggestions = false
 
     var body: some View {
         Group {
@@ -110,11 +111,20 @@ struct RecipeLibraryContent: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button("Add Recipe", systemImage: "plus") {
-                showingCreate = true
+            HStack {
+                Button("What Can I Make?", systemImage: "cabinet") {
+                    showingPantrySuggestions = true
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("What Can I Make")
+
+                Spacer()
+
+                Button("Add Recipe", systemImage: "plus") {
+                    showingCreate = true
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
-            .frame(maxWidth: .infinity, alignment: .trailing)
             .padding(.horizontal)
             .padding(.vertical, 8)
             .background(.bar)
@@ -130,6 +140,14 @@ struct RecipeLibraryContent: View {
         .sheet(isPresented: $showingYourData) {
             NavigationStack {
                 YourDataView()
+            }
+        }
+        .sheet(isPresented: $showingPantrySuggestions) {
+            NavigationStack {
+                WhatCanIMakeView()
+                    .navigationDestination(for: UUID.self) { recipeID in
+                        RecipeDetailView(recipeID: recipeID)
+                    }
             }
         }
         .onAppear { reload() }
