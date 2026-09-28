@@ -94,16 +94,34 @@ struct RecipeDetailView: View {
                     if guidance.hasGuidance {
                         Section("Scaling Notes") {
                             if let pan = guidance.panSizeGuidance {
-                                Label(pan, systemImage: "frying.pan")
-                                    .accessibilityIdentifier("Pan size guidance")
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: "frying.pan")
+                                        .accessibilityHidden(true)
+                                    Text(pan)
+                                        .font(.subheadline)
+                                }
+                                .accessibilityElement(children: .combine)
+                                .accessibilityIdentifier("Pan size guidance")
                             }
                             if let batch = guidance.batchGuidance {
-                                Label(batch, systemImage: "square.stack.3d.up")
-                                    .accessibilityIdentifier("Batch size guidance")
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: "square.stack.3d.up")
+                                        .accessibilityHidden(true)
+                                    Text(batch)
+                                        .font(.subheadline)
+                                }
+                                .accessibilityElement(children: .combine)
+                                .accessibilityIdentifier("Batch size guidance")
                             }
                             if let time = guidance.cookingTimeGuidance {
-                                Label(time, systemImage: "clock.badge.exclamationmark")
-                                    .accessibilityIdentifier("Cooking time guidance")
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: "clock.badge.exclamationmark")
+                                        .accessibilityHidden(true)
+                                    Text(time)
+                                        .font(.subheadline)
+                                }
+                                .accessibilityElement(children: .combine)
+                                .accessibilityIdentifier("Cooking time guidance")
                             }
                         }
                     }
