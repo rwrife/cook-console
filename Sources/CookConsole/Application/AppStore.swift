@@ -151,6 +151,26 @@ final class AppStore: ObservableObject {
                         steps: [try RecipeStep(instruction: "Mix and serve.")]
                     ))
                 }
+                if ProcessInfo.processInfo.arguments.contains("-ui-testing-scaling-fixture") {
+                    try recipeRepository.create(Recipe(
+                        title: "Scaling Cake",
+                        servings: 2,
+                        ingredients: [
+                            try Ingredient(name: "Flour", amount: 1.13, unit: .cup),
+                            try Ingredient(name: "Eggs", amount: 3, unit: .each),
+                        ],
+                        steps: [
+                            try RecipeStep(
+                                instruction: "Bake until a tester comes out clean.",
+                                timerDuration: 1_800
+                            ),
+                        ],
+                        tags: ["baking"],
+                        panSizeGuidance: "Use two prepared 8-inch pans.",
+                        batchSizeGuidance: "Mix in two batches if the bowl is crowded.",
+                        cookingTimeGuidance: "Keep the original bake time and test both pans."
+                    ))
+                }
                 let scheduler = NoopTimerNotificationScheduler()
                 return AppStore(
                     repository: recipeRepository,

@@ -79,6 +79,7 @@ final class RecipeRepositoryTests: XCTestCase {
             "v5_timer_invariants_and_completion_queue",
             "v6_timer_schedule_generation",
             "v7_create_pantry",
+            "v8_add_scaling_guidance",
         ])
         let timerColumns = try database.read { db in
             try String.fetchAll(
@@ -210,6 +211,26 @@ final class RecipeRepositoryTests: XCTestCase {
         try repository.create(recipe)
 
         XCTAssertEqual(try repository.fetch(id: recipe.id), recipe)
+    }
+
+    func testRecipeSpecificScalingGuidancePersistsAndBlankValuesNormalize() throws {
+        let repository = try makeRepository()
+        let recipe = try Recipe(
+            title: "Tested Cake",
+            servings: 8,
+            ingredients: [try Ingredient(name: "Flour", amount: 2, unit: .cup)],
+            steps: [try RecipeStep(instruction: "Bake.")],
+            panSizeGuidance: "  Use two 8-inch pans.  ",
+            batchSizeGuidance: " ",
+            cookingTimeGuidance: "Check at 25 minutes."
+        )
+
+        try repository.create(recipe)
+        let stored = try XCTUnwrap(repository.fetch(id: recipe.id))
+
+        XCTAssertEqual(stored.panSizeGuidance, "Use two 8-inch pans.")
+        XCTAssertNil(stored.batchSizeGuidance)
+        XCTAssertEqual(stored.cookingTimeGuidance, "Check at 25 minutes.")
     }
 
     func testFetchAllSortsCaseInsensitivelyByTitle() throws {

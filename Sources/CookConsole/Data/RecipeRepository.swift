@@ -194,13 +194,18 @@ final class RecipeRepository {
             try db.execute(
                 sql: """
                     UPDATE recipes
-                    SET title = ?, servings = ?, is_favorite = ?
+                    SET title = ?, servings = ?, is_favorite = ?,
+                        pan_size_guidance = ?, batch_size_guidance = ?,
+                        cooking_time_guidance = ?
                     WHERE id = ?
                     """,
                 arguments: [
                     recipe.title,
                     recipe.servings,
                     recipe.isFavorite,
+                    recipe.panSizeGuidance,
+                    recipe.batchSizeGuidance,
+                    recipe.cookingTimeGuidance,
                     recipe.id.uuidString,
                 ]
             )
@@ -230,12 +235,20 @@ final class RecipeRepository {
 
     private func insert(_ recipe: Recipe, into db: Database) throws {
         try db.execute(
-            sql: "INSERT INTO recipes (id, title, servings, is_favorite) VALUES (?, ?, ?, ?)",
+            sql: """
+                INSERT INTO recipes
+                    (id, title, servings, is_favorite,
+                     pan_size_guidance, batch_size_guidance, cooking_time_guidance)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
             arguments: [
                 recipe.id.uuidString,
                 recipe.title,
                 recipe.servings,
                 recipe.isFavorite,
+                recipe.panSizeGuidance,
+                recipe.batchSizeGuidance,
+                recipe.cookingTimeGuidance,
             ]
         )
         try insertChildren(of: recipe, into: db)
@@ -293,7 +306,11 @@ final class RecipeRepository {
     private func fetchRecipe(id: UUID, from db: Database) throws -> Recipe? {
         guard let recipeRow = try Row.fetchOne(
             db,
-            sql: "SELECT id, title, servings, is_favorite FROM recipes WHERE id = ?",
+            sql: """
+                SELECT id, title, servings, is_favorite,
+                       pan_size_guidance, batch_size_guidance, cooking_time_guidance
+                FROM recipes WHERE id = ?
+                """,
             arguments: [id.uuidString]
         ) else { return nil }
 
@@ -357,7 +374,10 @@ final class RecipeRepository {
                 ingredients: ingredients,
                 steps: steps,
                 tags: tags,
-                isFavorite: recipeRow["is_favorite"]
+                isFavorite: recipeRow["is_favorite"],
+                panSizeGuidance: recipeRow["pan_size_guidance"],
+                batchSizeGuidance: recipeRow["batch_size_guidance"],
+                cookingTimeGuidance: recipeRow["cooking_time_guidance"]
             )
         } catch let error as RecipeRepositoryError {
             throw error

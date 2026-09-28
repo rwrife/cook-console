@@ -10,6 +10,9 @@ struct RecipeEditorView: View {
         case stepInstruction(UUID)
         case stepTimer(UUID)
         case tags
+        case panSizeGuidance
+        case batchSizeGuidance
+        case cookingTimeGuidance
     }
 
     @EnvironmentObject private var store: AppStore
@@ -98,6 +101,22 @@ struct RecipeEditorView: View {
                     .focused($focusedField, equals: .tags)
                     .accessibilityLabel("Tags")
                     .accessibilityIdentifier("Tags")
+            }
+
+            Section {
+                TextField("Pan-size guidance (optional)", text: $draft.panSizeGuidance, axis: .vertical)
+                    .focused($focusedField, equals: .panSizeGuidance)
+                    .accessibilityIdentifier("Pan size guidance editor")
+                TextField("Batch-size guidance (optional)", text: $draft.batchSizeGuidance, axis: .vertical)
+                    .focused($focusedField, equals: .batchSizeGuidance)
+                    .accessibilityIdentifier("Batch size guidance editor")
+                TextField("Cooking-time guidance (optional)", text: $draft.cookingTimeGuidance, axis: .vertical)
+                    .focused($focusedField, equals: .cookingTimeGuidance)
+                    .accessibilityIdentifier("Cooking time guidance editor")
+            } header: {
+                Text("Scaling Guidance")
+            } footer: {
+                Text("Shown when servings differ from the original yield. Cooking time is never scaled automatically.")
             }
         }
         .accessibilityIdentifier("Recipe editor form")

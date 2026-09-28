@@ -29,8 +29,6 @@ struct RecipeDetailView: View {
                             VStack {
                                 Text(RecipeAmountFormatter.string(targetServings))
                                     .font(.title2.bold())
-                                    // "Servings, 4" — a bare "4" is not
-                                    // meaningful when rotor-focused.
                                     .accessibilityLabel("Servings")
                                     .accessibilityValue(RecipeAmountFormatter.string(targetServings))
                                 Text("servings")
@@ -48,16 +46,65 @@ struct RecipeDetailView: View {
                             .buttonStyle(.borderless)
                             .accessibilityLabel("Increase servings by half")
                         }
-                        Button("Reset") { targetServings = recipe.servings }
+                        Text("Original recipe: \(RecipeAmountFormatter.string(recipe.servings)) servings")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                        Button("Reset to Original") { targetServings = recipe.servings }
                             .frame(maxWidth: .infinity)
                             .accessibilityLabel("Reset servings")
+                            .disabled(isOriginalYield(recipe))
                     } header: {
                         Text("Scale")
                     }
 
                     Section("Ingredients") {
                         ForEach(scaledIngredients(for: recipe)) { ingredient in
-                            Text(RecipeAmountFormatter.ingredient(ingredient))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(RecipeAmountFormatter.ingredient(ingredient))
+                                if ingredient.wasRoundedForDisplay {
+                                    Text(
+                                        "Calculated: \(RecipeAmountFormatter.exactIngredient(ingredient)). "
+                                        + "Shown as a practical kitchen measure."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityIdentifier("Rounding disclosure \(ingredient.name)")
+                                }
+                                if let guidance = ingredient.actionableGuidance {
+                                    Label(guidance, systemImage: "lightbulb")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityIdentifier("Ingredient guidance \(ingredient.name)")
+                                }
+                            }
+                        }
+                        if !isOriginalYield(recipe) {
+                            Text("Ingredient amounts are calculated from the original recipe every time. Practical display rounding never changes the saved quantities, and positive amounts never display as zero.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("Scaling rounding disclosure")
+                        }
+                    }
+
+                    let guidance = ScalingLimitsGuidance.guidance(
+                        for: recipe,
+                        targetServings: targetServings
+                    )
+                    if guidance.hasGuidance {
+                        Section("Scaling Notes") {
+                            if let pan = guidance.panSizeGuidance {
+                                Label(pan, systemImage: "frying.pan")
+                                    .accessibilityIdentifier("Pan size guidance")
+                            }
+                            if let batch = guidance.batchGuidance {
+                                Label(batch, systemImage: "square.stack.3d.up")
+                                    .accessibilityIdentifier("Batch size guidance")
+                            }
+                            if let time = guidance.cookingTimeGuidance {
+                                Label(time, systemImage: "clock.badge.exclamationmark")
+                                    .accessibilityIdentifier("Cooking time guidance")
+                            }
                         }
                     }
 
@@ -127,7 +174,11 @@ struct RecipeDetailView: View {
         targetServings = max(0.5, targetServings + amount)
     }
 
-    private func scaledIngredients(for recipe: Recipe) -> [Ingredient] {
+    private func isOriginalYield(_ recipe: Recipe) -> Bool {
+        abs(targetServings - recipe.servings) < 0.000_001
+    }
+
+    private func scaledIngredients(for recipe: Recipe) -> [ScaledIngredient] {
         do {
             return try ScalingEngine.scaledIngredients(
                 for: recipe,
@@ -135,7 +186,7 @@ struct RecipeDetailView: View {
             )
         } catch {
             store.present(error)
-            return recipe.ingredients
+            return recipe.ingredients.compactMap { try? ScalingEngine.scaled($0, ratio: 1) }
         }
     }
 }
@@ -145,8 +196,12 @@ enum RecipeAmountFormatter {
         value.formatted(.number.precision(.fractionLength(0...3)))
     }
 
-    static func ingredient(_ ingredient: Ingredient) -> String {
-        "\(string(ingredient.amount)) \(ingredient.unit.symbol) \(ingredient.name)"
+    static func ingredient(_ ingredient: ScaledIngredient) -> String {
+        "\(KitchenQuantityFormatter.string(ingredient.displayAmount)) \(ingredient.unit.symbol) \(ingredient.name)"
+    }
+
+    static func exactIngredient(_ ingredient: ScaledIngredient) -> String {
+        "\(string(ingredient.exactAmount)) \(ingredient.unit.symbol)"
     }
 
     static func duration(_ seconds: TimeInterval) -> String {
