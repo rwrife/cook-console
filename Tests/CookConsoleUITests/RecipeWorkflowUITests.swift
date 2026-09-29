@@ -64,8 +64,12 @@ final class RecipeWorkflowUITests: XCTestCase {
         XCTAssertTrue(timeGuidance.label.contains("Keep the original bake time and test both pans."))
         XCTAssertTrue(app.descendants(matching: .any)["Scaling rounding disclosure"].exists)
 
-        scrollToExists(app.buttons["Reset servings"], in: detail)
-        app.buttons["Reset servings"].tap()
+        let resetServings = app.buttons["Reset servings"]
+        // Scaling notes are below the Scale section. Return upward before
+        // tapping reset; run 36555388102 proved swipeUp can never remount this
+        // earlier control once the test has reached the guidance rows.
+        scrollToEarlierElement(resetServings, in: detail)
+        resetServings.tap()
         // The saved 1.13 cup amount is exact internally; the unit-aware
         // display policy snaps cup amounts from 1...4 to quarter-cups. Reset
         // therefore restores the base recipe and displays 1 1/4, not the
