@@ -55,7 +55,12 @@ final class RecipeWorkflowUITests: XCTestCase {
         scrollToExists(panGuidance, in: detail)
         XCTAssertTrue(panGuidance.label.contains("Use two prepared 8-inch pans."))
         let timeGuidance = app.descendants(matching: .any)["Cooking time guidance"]
-        XCTAssertTrue(timeGuidance.exists)
+        // Sibling rows below the pan guidance are lazily mounted by the iOS 26
+        // CollectionView bridge: "exists" was true for pan guidance but false
+        // for the row beneath it in run 36549317916 (:58) because scrolling
+        // stopped at the first already-mounted row. Scroll for each row
+        // individually before asserting on it.
+        scrollToExists(timeGuidance, in: detail)
         XCTAssertTrue(timeGuidance.label.contains("Keep the original bake time and test both pans."))
         XCTAssertTrue(app.descendants(matching: .any)["Scaling rounding disclosure"].exists)
 
