@@ -66,13 +66,17 @@ final class RecipeWorkflowUITests: XCTestCase {
 
         scrollToExists(app.buttons["Reset servings"], in: detail)
         app.buttons["Reset servings"].tap()
-        let resetFlour = app.staticTexts["1 1/8 cup Flour"]
-        // Reset removes the scaling-guidance rows above the ingredient list.
-        // On iOS 26's lazy CollectionView bridge the resulting layout change
-        // can leave the restored ingredient outside the mounted AX window even
-        // though reset succeeded. Scroll back to the ingredient before proving
-        // the original display amount was restored.
-        scrollToExists(resetFlour, in: detail)
+        // The saved 1.13 cup amount is exact internally; the unit-aware
+        // display policy snaps cup amounts from 1...4 to quarter-cups. Reset
+        // therefore restores the base recipe and displays 1 1/4, not the
+        // scaled 1 1/2. The prior 1 1/8 expectation contradicted that policy.
+        let resetFlour = app.staticTexts["1 1/4 cup Flour"]
+        // Reset removes the scaling-guidance rows below the ingredient list.
+        // The test is currently scrolled to those lower rows, so the restored
+        // ingredient is earlier in the CollectionView. Swipe down toward it;
+        // swiping up moved farther away and deterministically failed in run
+        // 36552563888.
+        scrollToEarlierElement(resetFlour, in: detail)
         XCTAssertTrue(resetFlour.exists)
     }
 
@@ -415,6 +419,16 @@ final class RecipeWorkflowUITests: XCTestCase {
                 return
             }
             container.swipeUp()
+        }
+        XCTAssertTrue(element.waitForExistence(timeout: 2))
+    }
+
+    private func scrollToEarlierElement(_ element: XCUIElement, in container: XCUIElement) {
+        for _ in 0..<10 {
+            if element.exists {
+                return
+            }
+            container.swipeDown()
         }
         XCTAssertTrue(element.waitForExistence(timeout: 2))
     }
