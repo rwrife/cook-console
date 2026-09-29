@@ -61,7 +61,14 @@ final class RecipeWorkflowUITests: XCTestCase {
 
         scrollToExists(app.buttons["Reset servings"], in: detail)
         app.buttons["Reset servings"].tap()
-        XCTAssertTrue(app.staticTexts["1 1/8 cup Flour"].waitForExistence(timeout: 2))
+        let resetFlour = app.staticTexts["1 1/8 cup Flour"]
+        // Reset removes the scaling-guidance rows above the ingredient list.
+        // On iOS 26's lazy CollectionView bridge the resulting layout change
+        // can leave the restored ingredient outside the mounted AX window even
+        // though reset succeeded. Scroll back to the ingredient before proving
+        // the original display amount was restored.
+        scrollToExists(resetFlour, in: detail)
+        XCTAssertTrue(resetFlour.exists)
     }
 
     func testCookNavigationAndFullRecipeEscapePreservePosition() {
