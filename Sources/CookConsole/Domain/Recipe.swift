@@ -106,6 +106,9 @@ struct Recipe: Identifiable, Equatable, Sendable {
     let steps: [RecipeStep]
     let tags: [String]
     let isFavorite: Bool
+    let panSizeGuidance: String?
+    let batchSizeGuidance: String?
+    let cookingTimeGuidance: String?
 
     init(
         id: UUID = UUID(),
@@ -114,7 +117,10 @@ struct Recipe: Identifiable, Equatable, Sendable {
         ingredients: [Ingredient],
         steps: [RecipeStep],
         tags: [String] = [],
-        isFavorite: Bool = false
+        isFavorite: Bool = false,
+        panSizeGuidance: String? = nil,
+        batchSizeGuidance: String? = nil,
+        cookingTimeGuidance: String? = nil
     ) throws {
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedTitle.isEmpty else {
@@ -137,6 +143,16 @@ struct Recipe: Identifiable, Equatable, Sendable {
         self.steps = steps
         self.tags = Self.normalizedTags(tags)
         self.isFavorite = isFavorite
+        self.panSizeGuidance = Self.normalizedGuidance(panSizeGuidance)
+        self.batchSizeGuidance = Self.normalizedGuidance(batchSizeGuidance)
+        self.cookingTimeGuidance = Self.normalizedGuidance(cookingTimeGuidance)
+    }
+
+    private static func normalizedGuidance(_ value: String?) -> String? {
+        guard let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !normalized.isEmpty
+        else { return nil }
+        return normalized
     }
 
     private static func normalizedTags(_ tags: [String]) -> [String] {

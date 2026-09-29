@@ -55,6 +55,9 @@ struct BackupDocument: Codable, Equatable, Sendable {
         var tags: [String]
         var ingredients: [StoredIngredient]
         var steps: [StoredStep]
+        var panSizeGuidance: String? = nil
+        var batchSizeGuidance: String? = nil
+        var cookingTimeGuidance: String? = nil
     }
 
     struct StoredSession: Codable, Equatable, Sendable {
@@ -664,7 +667,11 @@ final class DataTransferService: @unchecked Sendable {
     ) {
         let recipeRows = try Row.fetchAll(
             db,
-            sql: "SELECT id, title, servings, is_favorite FROM recipes ORDER BY rowid"
+            sql: """
+                SELECT id, title, servings, is_favorite,
+                       pan_size_guidance, batch_size_guidance, cooking_time_guidance
+                FROM recipes ORDER BY rowid
+                """
         )
         var recipes: [BackupDocument.StoredRecipe] = []
         for row in recipeRows {
@@ -715,7 +722,10 @@ final class DataTransferService: @unchecked Sendable {
                         instruction: stepRow["instruction"],
                         timerDuration: stepRow["timer_duration"]
                     )
-                }
+                },
+                panSizeGuidance: row["pan_size_guidance"],
+                batchSizeGuidance: row["batch_size_guidance"],
+                cookingTimeGuidance: row["cooking_time_guidance"]
             ))
         }
 
@@ -820,7 +830,10 @@ final class DataTransferService: @unchecked Sendable {
                 )
             },
             tags: stored.tags,
-            isFavorite: stored.isFavorite
+            isFavorite: stored.isFavorite,
+            panSizeGuidance: stored.panSizeGuidance,
+            batchSizeGuidance: stored.batchSizeGuidance,
+            cookingTimeGuidance: stored.cookingTimeGuidance
         )
     }
 
@@ -831,7 +844,11 @@ final class DataTransferService: @unchecked Sendable {
         let idString = id.uuidString
         guard let row = try Row.fetchOne(
             db,
-            sql: "SELECT title, servings, is_favorite FROM recipes WHERE id = ?",
+            sql: """
+                SELECT title, servings, is_favorite,
+                       pan_size_guidance, batch_size_guidance, cooking_time_guidance
+                FROM recipes WHERE id = ?
+                """,
             arguments: [idString]
         ) else { return nil }
         let stored = BackupDocument.StoredRecipe(
@@ -866,15 +883,26 @@ final class DataTransferService: @unchecked Sendable {
                     instruction: row["instruction"],
                     timerDuration: row["timer_duration"]
                 )
-            }
+            },
+            panSizeGuidance: row["pan_size_guidance"],
+            batchSizeGuidance: row["batch_size_guidance"],
+            cookingTimeGuidance: row["cooking_time_guidance"]
         )
         return try? decodedRecipe(stored)
     }
 
     private static func insertRecipe(_ db: Database, _ recipe: Recipe) throws {
         try db.execute(
-            sql: "INSERT INTO recipes (id, title, servings, is_favorite) VALUES (?, ?, ?, ?)",
-            arguments: [recipe.id.uuidString, recipe.title, recipe.servings, recipe.isFavorite]
+            sql: """
+                INSERT INTO recipes
+                    (id, title, servings, is_favorite,
+                     pan_size_guidance, batch_size_guidance, cooking_time_guidance)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+            arguments: [
+                recipe.id.uuidString, recipe.title, recipe.servings, recipe.isFavorite,
+                recipe.panSizeGuidance, recipe.batchSizeGuidance, recipe.cookingTimeGuidance,
+            ]
         )
         try insertRecipeChildren(db, recipe)
     }
@@ -884,8 +912,18 @@ final class DataTransferService: @unchecked Sendable {
     /// step the same way the regular update path does.
     private static func replaceRecipe(_ db: Database, with recipe: Recipe) throws {
         try db.execute(
-            sql: "UPDATE recipes SET title = ?, servings = ?, is_favorite = ? WHERE id = ?",
-            arguments: [recipe.title, recipe.servings, recipe.isFavorite, recipe.id.uuidString]
+            sql: """
+                UPDATE recipes
+                SET title = ?, servings = ?, is_favorite = ?,
+                    pan_size_guidance = ?, batch_size_guidance = ?,
+                    cooking_time_guidance = ?
+                WHERE id = ?
+                """,
+            arguments: [
+                recipe.title, recipe.servings, recipe.isFavorite,
+                recipe.panSizeGuidance, recipe.batchSizeGuidance, recipe.cookingTimeGuidance,
+                recipe.id.uuidString,
+            ]
         )
         try db.execute(sql: "DELETE FROM ingredients WHERE recipe_id = ?", arguments: [recipe.id.uuidString])
         try db.execute(sql: "DELETE FROM recipe_steps WHERE recipe_id = ?", arguments: [recipe.id.uuidString])

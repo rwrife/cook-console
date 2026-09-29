@@ -33,6 +33,9 @@ GRDB applies these migrations in order:
    to fire again, and persists completion alerts until explicit acknowledgment.
 6. `v6_timer_schedule_generation` persists a per-timer notification-schedule
    generation used to reject obsolete notification deliveries.
+7. `v7_create_pantry` adds local pantry items and one-time staple-seed metadata.
+8. `v8_add_scaling_guidance` adds optional per-recipe pan-size, batch-size,
+   and cooking-time guidance.
 
 Text checks use SQLite's built-in two-argument `trim` with the explicit Unicode
 characters in Foundation's `whitespacesAndNewlines`, so every database
@@ -47,22 +50,28 @@ for tests.
 
 ## Servings scaling and rounding
 
-The raw amount is `ingredient amount × target servings / recipe servings`.
-Inputs and results must be finite and greater than zero. Values are snapped to
-the nearest increment below, with a minimum of one increment so a positive
-ingredient never rounds to zero:
+The exact amount is `original ingredient amount × target servings / original
+recipe servings`. Exact amounts remain separate from practical display amounts,
+so repeated serving changes never accumulate rounding. Inputs and results must
+be finite and greater than zero. Display values are snapped to the nearest
+unit-aware increment, with a positive minimum so an ingredient never displays
+as zero:
 
 | Unit | Amount range | Increment |
 |---|---:|---:|
 | tsp, tbsp, cup | below 1 / 1–4 / above 4 | 1/8 / 1/4 / 1/2 |
 | g, mL | below 1 / 1–10 / 10–100 / 100+ | 0.1 / 0.5 / 1 / 5 |
 | kg, L | below 1 / 1+ | 0.05 / 0.1 |
-| each | all | 0.5 |
+| each | all | 0.25 |
 | oz | all | 0.25 |
 | lb | all | 0.125 |
 
-Snapped results are normalized to nine decimal places to avoid exposing
-binary floating-point noise in otherwise simple fractions.
+Display results are normalized to nine decimal places to avoid exposing binary
+floating-point noise. Fractional countable items receive actionable guidance;
+eggs explain how to beat whole eggs and measure the needed fraction. Substantial
+yield changes also show recipe-specific or conservative fallback guidance for
+pan size, batch capacity, and cooking time. Cooking time is never scaled
+linearly.
 
 ## Plain-text import grammar
 

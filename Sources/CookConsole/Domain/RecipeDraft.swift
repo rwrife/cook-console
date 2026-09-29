@@ -8,6 +8,9 @@ struct RecipeDraft {
     var steps: [StepDraft]
     var tags: String
     var isFavorite: Bool
+    var panSizeGuidance: String
+    var batchSizeGuidance: String
+    var cookingTimeGuidance: String
 
     private let locale: Locale
 
@@ -24,6 +27,9 @@ struct RecipeDraft {
         } ?? [StepDraft(position: 1, locale: locale)]
         tags = recipe?.tags.joined(separator: ", ") ?? ""
         isFavorite = recipe?.isFavorite ?? false
+        panSizeGuidance = recipe?.panSizeGuidance ?? ""
+        batchSizeGuidance = recipe?.batchSizeGuidance ?? ""
+        cookingTimeGuidance = recipe?.cookingTimeGuidance ?? ""
     }
 
     mutating func addIngredient() {
@@ -83,7 +89,10 @@ struct RecipeDraft {
             ingredients: domainIngredients,
             steps: domainSteps,
             tags: tags.split(separator: ",", omittingEmptySubsequences: false).map(String.init),
-            isFavorite: isFavorite
+            isFavorite: isFavorite,
+            panSizeGuidance: panSizeGuidance,
+            batchSizeGuidance: batchSizeGuidance,
+            cookingTimeGuidance: cookingTimeGuidance
         )
     }
 

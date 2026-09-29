@@ -219,6 +219,13 @@ enum RecipeDatabase {
                 table.column("value", .text).notNull()
             }
         }
+        migrator.registerMigration("v8_add_scaling_guidance") { db in
+            try db.alter(table: "recipes") { table in
+                table.add(column: "pan_size_guidance", .text)
+                table.add(column: "batch_size_guidance", .text)
+                table.add(column: "cooking_time_guidance", .text)
+            }
+        }
         return migrator
     }
 }

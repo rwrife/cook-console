@@ -29,9 +29,59 @@ final class RecipeWorkflowUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["2 cup Stock"].exists)
         app.buttons["Increase servings by half"].tap()
-        XCTAssertTrue(app.staticTexts["2.5 cup Stock"].waitForExistence(timeout: 1))
+        XCTAssertTrue(app.staticTexts["2 1/2 cup Stock"].waitForExistence(timeout: 1))
         app.buttons["Reset servings"].tap()
         XCTAssertTrue(app.staticTexts["2 cup Stock"].waitForExistence(timeout: 1))
+    }
+
+    func testPracticalScalingDisclosesRoundingEggsPanAndTimeGuidance() {
+        app.terminate()
+        app.launchArguments = ["-ui-testing-reset", "-ui-testing-scaling-fixture"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["Scaling Cake"].waitForExistence(timeout: 3))
+        app.buttons["Scaling Cake"].tap()
+        app.buttons["Increase servings by half"].tap()
+
+        let detail = app.collectionViews.firstMatch
+        XCTAssertTrue(app.staticTexts["1 1/2 cup Flour"].waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["Rounding disclosure Flour"].exists
+        )
+        XCTAssertTrue(
+            app.descendants(matching: .any)["Ingredient guidance Eggs"].exists
+        )
+        let panGuidance = app.descendants(matching: .any)["Pan size guidance"]
+        scrollToExists(panGuidance, in: detail)
+        XCTAssertTrue(panGuidance.label.contains("Use two prepared 8-inch pans."))
+        let timeGuidance = app.descendants(matching: .any)["Cooking time guidance"]
+        // Sibling rows below the pan guidance are lazily mounted by the iOS 26
+        // CollectionView bridge: "exists" was true for pan guidance but false
+        // for the row beneath it in run 36549317916 (:58) because scrolling
+        // stopped at the first already-mounted row. Scroll for each row
+        // individually before asserting on it.
+        scrollToExists(timeGuidance, in: detail)
+        XCTAssertTrue(timeGuidance.label.contains("Keep the original bake time and test both pans."))
+        XCTAssertTrue(app.descendants(matching: .any)["Scaling rounding disclosure"].exists)
+
+        let resetServings = app.buttons["Reset servings"]
+        // Scaling notes are below the Scale section. Return upward before
+        // tapping reset; run 36555388102 proved swipeUp can never remount this
+        // earlier control once the test has reached the guidance rows.
+        scrollToEarlierElement(resetServings, in: detail)
+        resetServings.tap()
+        // The saved 1.13 cup amount is exact internally; the unit-aware
+        // display policy snaps cup amounts from 1...4 to quarter-cups. Reset
+        // therefore restores the base recipe and displays 1 1/4, not the
+        // scaled 1 1/2. The prior 1 1/8 expectation contradicted that policy.
+        let resetFlour = app.staticTexts["1 1/4 cup Flour"]
+        // Reset removes the scaling-guidance rows below the ingredient list.
+        // The test is currently scrolled to those lower rows, so the restored
+        // ingredient is earlier in the CollectionView. Swipe down toward it;
+        // swiping up moved farther away and deterministically failed in run
+        // 36552563888.
+        scrollToEarlierElement(resetFlour, in: detail)
+        XCTAssertTrue(resetFlour.exists)
     }
 
     func testCookNavigationAndFullRecipeEscapePreservePosition() {
@@ -365,5 +415,25 @@ final class RecipeWorkflowUITests: XCTestCase {
         }
         XCTAssertTrue(element.waitForExistence(timeout: 2))
         XCTAssertTrue(element.isHittable)
+    }
+
+    private func scrollToExists(_ element: XCUIElement, in container: XCUIElement) {
+        for _ in 0..<10 {
+            if element.exists {
+                return
+            }
+            container.swipeUp()
+        }
+        XCTAssertTrue(element.waitForExistence(timeout: 2))
+    }
+
+    private func scrollToEarlierElement(_ element: XCUIElement, in container: XCUIElement) {
+        for _ in 0..<10 {
+            if element.exists {
+                return
+            }
+            container.swipeDown()
+        }
+        XCTAssertTrue(element.waitForExistence(timeout: 2))
     }
 }

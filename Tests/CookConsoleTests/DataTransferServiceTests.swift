@@ -142,6 +142,28 @@ final class DataTransferServiceTests: XCTestCase {
         XCTAssertEqual(decoded, document)
     }
 
+    func testScalingGuidanceRoundTripsThroughBackupJSON() throws {
+        let (sourceService, _, sourceRepository) = try makeService()
+        let recipe = try Recipe(
+            title: "Guided Cake",
+            servings: 8,
+            ingredients: [try Ingredient(name: "Flour", amount: 2, unit: .cup)],
+            steps: [try RecipeStep(instruction: "Bake.")],
+            panSizeGuidance: "Use two 8-inch pans.",
+            batchSizeGuidance: "Mix in two batches.",
+            cookingTimeGuidance: "Check at 25 minutes."
+        )
+        try sourceRepository.create(recipe)
+
+        let document = try sourceService.exportDocument()
+        let data = try sourceService.encodedData(for: document)
+        let decoded = try sourceService.decodedDocument(from: data)
+        let (targetService, _, targetRepository) = try makeService()
+        _ = try targetService.applyValidated(decoded)
+
+        XCTAssertEqual(try targetRepository.fetch(id: recipe.id), recipe)
+    }
+
     // MARK: - Round-trip fidelity
 
     func testImportIntoEmptyStoreReproducesTheFullLibrary() throws {
