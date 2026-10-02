@@ -41,6 +41,27 @@ struct BackupDocument: Codable, Equatable, Sendable {
         var unit: String
     }
 
+    /// Issue #20: grocery selections/lines join the backup as OPTIONAL
+    /// additive fields — files written before the grocery feature still
+    /// decode (schemaVersion 1) and simply import no grocery state.
+    struct StoredGrocerySelection: Codable, Equatable, Sendable {
+        var id: UUID
+        var recipeID: UUID
+        var servings: Double
+        /// Ingredient name keys the shopper bought for this selection
+        /// (per-key checks — see GroceryRepository). Sorted in exports for
+        /// deterministic files.
+        var checkedKeys: [String]
+        var position: Int
+    }
+
+    struct StoredGroceryManualItem: Codable, Equatable, Sendable {
+        var id: UUID
+        var name: String
+        var isChecked: Bool
+        var position: Int
+    }
+
     struct StoredStep: Codable, Equatable, Sendable {
         var id: UUID
         var instruction: String
@@ -96,6 +117,12 @@ struct BackupDocument: Codable, Equatable, Sendable {
     var sessions: [StoredSession]
     var timers: [StoredTimer]
     var timerEvents: [StoredTimerEvent]
+    // Optional and additive (issue #20): pre-grocery files decode to nil.
+    // Optional is REQUIRED here — the synthesized decoder ignores default
+    // values on non-optional arrays and would throw keyNotFound on every
+    // pre-grocery backup file.
+    var grocerySelections: [StoredGrocerySelection]? = nil
+    var groceryManualItems: [StoredGroceryManualItem]? = nil
 }
 
 /// Summary of one applied import, shaped for a user-visible conflict report.
@@ -107,6 +134,10 @@ struct JSONImportOutcome: Equatable, Sendable {
     var sessionsSkipped = 0
     var timersAdded = 0
     var timersSkipped = 0
+    var grocerySelectionsAdded = 0
+    var grocerySelectionsSkipped = 0
+    var groceryManualItemsAdded = 0
+    var groceryManualItemsSkipped = 0
 
     /// Human-readable conflict summary shown after an import.
     var summaryText: String {
@@ -117,6 +148,10 @@ struct JSONImportOutcome: Equatable, Sendable {
         if sessionsSkipped > 0 { parts.append("\(sessionsSkipped) sessions already present") }
         parts.append("\(timersAdded) timer logs added")
         if timersSkipped > 0 { parts.append("\(timersSkipped) timer logs already present") }
+        if grocerySelectionsAdded > 0 { parts.append("\(grocerySelectionsAdded) grocery selections added") }
+        if grocerySelectionsSkipped > 0 { parts.append("\(grocerySelectionsSkipped) grocery selections already present") }
+        if groceryManualItemsAdded > 0 { parts.append("\(groceryManualItemsAdded) grocery items added") }
+        if groceryManualItemsSkipped > 0 { parts.append("\(groceryManualItemsSkipped) grocery items already present") }
         return parts.joined(separator: ", ") + "."
     }
 }
@@ -172,7 +207,9 @@ final class DataTransferService: @unchecked Sendable {
             recipes: snapshot.recipes,
             sessions: snapshot.sessions,
             timers: snapshot.timers,
-            timerEvents: snapshot.timerEvents
+            timerEvents: snapshot.timerEvents,
+            grocerySelections: snapshot.grocerySelections,
+            groceryManualItems: snapshot.groceryManualItems
         )
     }
 
@@ -281,6 +318,8 @@ final class DataTransferService: @unchecked Sendable {
             let existingSessionIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM cook_sessions"))
             let existingTimerIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM cook_timers"))
             let existingEventIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM timer_events"))
+            let existingGrocerySelectionIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM grocery_selections"))
+            let existingGroceryManualIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM grocery_manual_items"))
 
             let documentRecipeIDs = Set(document.recipes.map { $0.id.uuidString })
             let documentSessionIDs = Set(document.sessions.map { $0.id.uuidString })
@@ -469,6 +508,67 @@ final class DataTransferService: @unchecked Sendable {
                     ]
                 )
             }
+
+            // Grocery state (issue #20): keyed on stable IDs like everything
+            // else. A selection whose recipe is unknown after the recipe
+            // pass would violate the FK and abort the transaction — the
+            // file-internal reference check in validateSemantics already
+            // guarantees the recipe lives in the file (and therefore now in
+            // the store), so the FK can only fail on corrupt files.
+            for stored in document.grocerySelections ?? [] {
+                let key = stored.id.uuidString
+                guard !existingGrocerySelectionIDs.contains(key) else {
+                    outcome.grocerySelectionsSkipped += 1
+                    continue
+                }
+                try db.execute(
+                    sql: """
+                        INSERT INTO grocery_selections
+                            (id, recipe_id, servings, position)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                    arguments: [
+                        key,
+                        stored.recipeID.uuidString,
+                        stored.servings,
+                        stored.position,
+                    ]
+                )
+                for ingredientKey in stored.checkedKeys {
+                    let trimmed = ingredientKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { continue }
+                    try db.execute(
+                        sql: """
+                            INSERT INTO grocery_selection_checks
+                                (selection_id, ingredient_key, is_checked)
+                            VALUES (?, ?, 1)
+                            ON CONFLICT(selection_id, ingredient_key) DO UPDATE SET is_checked = 1
+                            """,
+                        arguments: [key, trimmed]
+                    )
+                }
+                outcome.grocerySelectionsAdded += 1
+            }
+            for stored in document.groceryManualItems ?? [] {
+                let key = stored.id.uuidString
+                guard !existingGroceryManualIDs.contains(key) else {
+                    outcome.groceryManualItemsSkipped += 1
+                    continue
+                }
+                let normalized = stored.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !normalized.isEmpty else {
+                    throw DataTransferError.invalidItem(path: "grocery item \(key)", reason: "name is blank.")
+                }
+                try db.execute(
+                    sql: """
+                        INSERT INTO grocery_manual_items
+                            (id, name, is_checked, position)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                    arguments: [key, normalized, stored.isChecked, stored.position]
+                )
+                outcome.groceryManualItemsAdded += 1
+            }
         }
         return outcome
     }
@@ -649,6 +749,52 @@ final class DataTransferService: @unchecked Sendable {
                 }
             }
         }
+
+        // Grocery state (issue #20): same rule as sessions — referenced
+        // recipes must live in the file, checked before any write so a
+        // rejected file never leaves partial state.
+        var grocerySelectionIDs = Set<UUID>()
+        for stored in document.grocerySelections ?? [] {
+            let path = "grocery selection \(stored.id.uuidString)"
+            guard grocerySelectionIDs.insert(stored.id).inserted else {
+                throw DataTransferError.invalidItem(path: path, reason: "duplicate selection ID in file.")
+            }
+            guard recipeIDs.contains(stored.recipeID) else {
+                throw DataTransferError.invalidItem(
+                    path: path,
+                    reason: "references recipe \(stored.recipeID.uuidString), which is not in the file (it may still exist in the library)."
+                )
+            }
+            guard stored.servings.isFinite, stored.servings > 0, stored.servings < 1e9 else {
+                throw DataTransferError.invalidItem(path: path, reason: "servings must be finite and > 0.")
+            }
+            guard stored.position >= 0 else {
+                throw DataTransferError.invalidItem(path: path, reason: "position must be >= 0.")
+            }
+            var checkedKeySet = Set<String>()
+            for ingredientKey in stored.checkedKeys {
+                let trimmed = ingredientKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else {
+                    throw DataTransferError.invalidItem(path: path, reason: "checked ingredient key is blank.")
+                }
+                guard checkedKeySet.insert(trimmed).inserted else {
+                    throw DataTransferError.invalidItem(path: path, reason: "duplicate checked ingredient key \(trimmed).")
+                }
+            }
+        }
+        var groceryManualIDs = Set<UUID>()
+        for stored in document.groceryManualItems ?? [] {
+            let path = "grocery item \(stored.id.uuidString)"
+            guard groceryManualIDs.insert(stored.id).inserted else {
+                throw DataTransferError.invalidItem(path: path, reason: "duplicate manual item ID in file.")
+            }
+            guard validText(stored.name) else {
+                throw DataTransferError.invalidItem(path: path, reason: "name is blank.")
+            }
+            guard stored.position >= 0 else {
+                throw DataTransferError.invalidItem(path: path, reason: "position must be >= 0.")
+            }
+        }
     }
 
     private static func validText(_ text: String) -> Bool {
@@ -663,7 +809,9 @@ final class DataTransferService: @unchecked Sendable {
         recipes: [BackupDocument.StoredRecipe],
         sessions: [BackupDocument.StoredSession],
         timers: [BackupDocument.StoredTimer],
-        timerEvents: [BackupDocument.StoredTimerEvent]
+        timerEvents: [BackupDocument.StoredTimerEvent],
+        grocerySelections: [BackupDocument.StoredGrocerySelection],
+        groceryManualItems: [BackupDocument.StoredGroceryManualItem]
     ) {
         let recipeRows = try Row.fetchAll(
             db,
@@ -804,7 +952,54 @@ final class DataTransferService: @unchecked Sendable {
             )
         }
 
-        return (recipes, sessions, timers, timerEvents)
+        let grocerySelections = try Row.fetchAll(
+            db,
+            sql: """
+                SELECT id, recipe_id, servings, position
+                FROM grocery_selections ORDER BY position, id
+                """
+        ).compactMap { row -> BackupDocument.StoredGrocerySelection? in
+            let idString: String = row["id"]
+            let recipeString: String = row["recipe_id"]
+            guard let id = UUID(uuidString: idString),
+                  let recipeID = UUID(uuidString: recipeString)
+            else { return nil }
+            let checkedKeys = try String.fetchAll(
+                db,
+                sql: """
+                    SELECT ingredient_key FROM grocery_selection_checks
+                    WHERE selection_id = ? AND is_checked = 1
+                    ORDER BY ingredient_key
+                    """,
+                arguments: [idString]
+            )
+            return BackupDocument.StoredGrocerySelection(
+                id: id,
+                recipeID: recipeID,
+                servings: row["servings"],
+                checkedKeys: checkedKeys,
+                position: row["position"]
+            )
+        }
+
+        let groceryManualItems = try Row.fetchAll(
+            db,
+            sql: """
+                SELECT id, name, is_checked, position
+                FROM grocery_manual_items ORDER BY position, id
+                """
+        ).compactMap { row -> BackupDocument.StoredGroceryManualItem? in
+            let idString: String = row["id"]
+            guard let id = UUID(uuidString: idString) else { return nil }
+            return BackupDocument.StoredGroceryManualItem(
+                id: id,
+                name: row["name"],
+                isChecked: row["is_checked"],
+                position: row["position"]
+            )
+        }
+
+        return (recipes, sessions, timers, timerEvents, grocerySelections, groceryManualItems)
     }
 
     // MARK: - Merge writes

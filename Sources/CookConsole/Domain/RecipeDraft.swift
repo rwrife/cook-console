@@ -140,19 +140,14 @@ struct StepDraft: Identifiable {
 }
 
 private enum EditableNumber {
+    // Issue #20: the identical lossless locale-aware helpers now live in the
+    // shared Domain `DecimalParsing` (used by the grocery serving steppers
+    // too). This shim keeps the draft call sites stable.
     static func string(_ value: Double, locale: Locale) -> String {
-        let lossless = String(value)
-        guard let separator = locale.decimalSeparator, separator != "." else {
-            return lossless
-        }
-        return lossless.replacingOccurrences(of: ".", with: separator)
+        DecimalParsing.string(value, locale: locale)
     }
 
     static func parse(_ text: String, locale: Locale) -> Double? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        let separator = locale.decimalSeparator ?? "."
-        if separator != ".", trimmed.contains(".") { return nil }
-        return Double(trimmed.replacingOccurrences(of: separator, with: "."))
+        DecimalParsing.parse(text, locale: locale)
     }
 }

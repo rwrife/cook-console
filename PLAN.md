@@ -4,7 +4,7 @@
 
 A local-first iOS cooking companion whose core interaction is the **console/detail split**: a persistent, glanceable "now cooking" surface (current step, next step, live timer wall) plus a detail surface (full recipe, notes, history). MVP is manual/plain-text recipes with servings scaling, step-by-step cook mode, multiple concurrent per-step timers with local notifications, session notes, and user-owned JSON/CSV export.
 
-Explicitly out of scope for MVP: accounts/cloud, recipe scraping/OCR, meal planning, grocery integration, nutrition/health claims, AI features, Android, and any use of unavailable iPhone Duo fold SDK APIs.
+Explicitly out of scope for MVP: accounts/cloud, recipe scraping/OCR, meal planning, third-party grocery-delivery integration (the in-app combined shopping list is local-only), nutrition/health claims, AI features, Android, and any use of unavailable iPhone Duo fold SDK APIs.
 
 ## Architecture
 
