@@ -171,6 +171,36 @@ final class AppStore: ObservableObject {
                         cookingTimeGuidance: "Keep the original bake time and test both pans."
                     ))
                 }
+                if ProcessInfo.processInfo.arguments.contains("-ui-testing-grocery-fixture") {
+                    // Issue #20: two recipes engineered to demonstrate every
+                    // merge rule at once — shared cup-level oil (merges),
+                    // shared grams (merges), a small spoon dose (stays in
+                    // its own bucket), a countable-by-weight item (each ->
+                    // grams), and a taste dose (never summed).
+                    try recipeRepository.create(Recipe(
+                        title: "Pasta Dinner",
+                        servings: 2,
+                        ingredients: [
+                            try Ingredient(name: "Olive oil", amount: 0.5, unit: .cup),
+                            try Ingredient(name: "Spinach", amount: 100, unit: .gram),
+                            try Ingredient(name: "Soy sauce", amount: 2, unit: .tablespoon),
+                            try Ingredient(name: "Cheese", amount: 2, unit: .each),
+                            try Ingredient(name: "Salt", amount: 0.5, unit: .teaspoon),
+                        ],
+                        steps: [try RecipeStep(instruction: "Cook and serve.")]
+                    ))
+                    try recipeRepository.create(Recipe(
+                        title: "Big Salad",
+                        servings: 4,
+                        ingredients: [
+                            try Ingredient(name: "Olive oil", amount: 0.25, unit: .cup),
+                            try Ingredient(name: "Spinach", amount: 200, unit: .gram),
+                            try Ingredient(name: "Cheese", amount: 1, unit: .each),
+                            try Ingredient(name: "Lemon juice to taste", amount: 1, unit: .teaspoon),
+                        ],
+                        steps: [try RecipeStep(instruction: "Toss and serve.")]
+                    ))
+                }
                 let scheduler = NoopTimerNotificationScheduler()
                 return AppStore(
                     repository: recipeRepository,
@@ -217,6 +247,162 @@ final class AppStore: ObservableObject {
         do {
             _ = try pantryRepository.remove(id: id)
             refreshPantrySuggestions()
+        } catch {
+            present(error)
+        }
+    }
+
+    // MARK: - Grocery list (issue #20)
+
+    private lazy var groceryRepository = GroceryRepository(database: repository.database)
+
+    @Published private(set) var grocerySelections: [GrocerySelection] = []
+    @Published private(set) var groceryManualItems: [GroceryManualItem] = []
+    /// The merged shopping sheet, recomputed from durable state after every
+    /// grocery/library mutation and at launch. The view renders it directly,
+    /// so the UI can never disagree with the pure engine.
+    @Published private(set) var grocerySnapshot = GroceryListSnapshot(
+        manualLines: [],
+        recipeLines: []
+    )
+
+    func loadGroceryList() {
+        reloadGrocery()
+    }
+
+    func addGrocerySelection(recipeID: UUID) {
+        do {
+            // Default servings = the recipe's own yield (or 1 when the
+            // recipe vanished mid-race; the FK would reject it anyway).
+            let servings = recipe(id: recipeID)?.servings ?? 1
+            _ = try groceryRepository.addSelection(recipeID: recipeID, servings: servings)
+            reloadGrocery()
+        } catch {
+            present(error)
+        }
+    }
+
+    func updateGrocerySelectionServings(id: UUID, servings: Double) {
+        do {
+            try groceryRepository.updateServings(selectionID: id, servings: servings)
+            reloadGrocery()
+        } catch {
+            present(error)
+        }
+    }
+
+    /// Check/uncheck a whole selection: the flag lands on every merge-key
+    /// the recipe contributes (per-key storage — see GroceryRepository).
+    func setGrocerySelectionChecked(id: UUID, isChecked: Bool) {
+        do {
+            guard let selection = grocerySelections.first(where: { $0.id == id }),
+                  let recipe = recipe(id: selection.recipeID) else { return }
+            for key in GroceryAggregationEngine.contributedKeys(for: recipe) {
+                try groceryRepository.setChecked(selectionID: id, ingredientKey: key, isChecked: isChecked)
+            }
+            reloadGrocery()
+        } catch {
+            present(error)
+        }
+    }
+
+    /// Check/uncheck a merged recipe line: the flag fans out to exactly the
+    /// selections contributing to that name key.
+    func setGroceryRecipeLineChecked(key: String, isChecked: Bool) {
+        do {
+            let contributing = GroceryAggregationEngine.checkedSelectionIDs(
+                forLineKey: key,
+                selections: grocerySelections,
+                recipes: try repository.fetchAll()
+            )
+            try groceryRepository.setChecked(selectionIDs: contributing, ingredientKey: key, isChecked: isChecked)
+            reloadGrocery()
+        } catch {
+            present(error)
+        }
+    }
+
+    func removeGrocerySelection(id: UUID) {
+        do {
+            _ = try groceryRepository.removeSelection(id: id)
+            reloadGrocery()
+        } catch {
+            present(error)
+        }
+    }
+
+    func addGroceryManualItem(name: String) {
+        do {
+            // Free-text smart parse ("2 cans tomatoes", "salt to taste")
+            // keeps the manual entry forgiving while storage stays simple:
+            // the parsed quantity renders into the durable name.
+            let parsed = GroceryAggregationEngine.parseManualEntry(name)
+            var durableName = parsed?.name ?? name
+            if let parsed, let amount = parsed.amount, let unit = parsed.unit {
+                durableName = "\(KitchenQuantityFormatter.string(amount)) \(unit.symbol) \(parsed.name)"
+            } else if parsed?.isTasteDosed == true, !durableName.lowercased().contains("to taste") {
+                durableName += " (to taste)"
+            }
+            _ = try groceryRepository.addManualItem(name: durableName)
+            reloadGrocery()
+        } catch {
+            present(error)
+        }
+    }
+
+    func setGroceryManualItemChecked(id: UUID, isChecked: Bool) {
+        do {
+            try groceryRepository.setManualItemChecked(id: id, isChecked: isChecked)
+            reloadGrocery()
+        } catch {
+            present(error)
+        }
+    }
+
+    func removeGroceryManualItem(id: UUID) {
+        do {
+            _ = try groceryRepository.removeManualItem(id: id)
+            reloadGrocery()
+        } catch {
+            present(error)
+        }
+    }
+
+    /// "Done shopping": checked manual items are bought and leave the list;
+    /// every selection unchecks for the next trip.
+    func doneShopping() {
+        do {
+            try groceryRepository.removeCheckedManualItems()
+            try groceryRepository.uncheckAllManualItems()
+            try groceryRepository.uncheckAllSelections()
+            reloadGrocery()
+        } catch {
+            present(error)
+        }
+    }
+
+    /// Grocery list as shareable plain text (provenance + qualifiers kept).
+    func exportedGroceryListURL() throws -> URL {
+        let directory = try Self.exportDirectory()
+        let url = directory.appendingPathComponent(
+            "grocery-list-\(Self.exportStampFormatter.string(from: Date())).txt"
+        )
+        try GroceryListFormatter.plainText(grocerySnapshot).write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    private func reloadGrocery() {
+        do {
+            grocerySelections = try groceryRepository.fetchSelections()
+            groceryManualItems = try groceryRepository.fetchManualItems()
+            // The FULL library, never `recipes` — that published list is the
+            // search/tag-filtered view, and a filtered subset would make
+            // shopping lines vanish just because the user typed in Search.
+            grocerySnapshot = GroceryAggregationEngine.aggregate(
+                selections: grocerySelections,
+                manualItems: groceryManualItems,
+                recipes: try repository.fetchAll()
+            )
         } catch {
             present(error)
         }

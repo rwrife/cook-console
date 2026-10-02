@@ -36,6 +36,7 @@ The project is an **iPhone Duo dual-screen design target**: on the dual-screen d
 - Per-step timers: named, started from the step, multiple concurrent, pause/extend, completion notifications.
 - Console surface (the dual-screen design target): persistent "now/next step + timer wall" pane. Today it is the compact top strip on phones and the left pane in the regular-width adaptive layout; later it maps to the second screen.
 - Local notes & history: per-cook session note, timer log, "make again" favorites.
+- Combined grocery list: pick recipes with per-selection servings, one merged shopping sheet with unit-aware dedup, provenance, manual items, check-off, and text export/share — all offline.
 - Export/backup: user-owned JSON + CSV export of recipes and history.
 - VoiceOver labels, Dynamic Type, and large hit targets throughout.
 
@@ -43,7 +44,7 @@ The project is an **iPhone Duo dual-screen design target**: on the dual-screen d
 
 - No accounts, cloud sync, or social features.
 - No recipe scraping from websites or OCR of printed books.
-- No grocery-list integration, meal planning calendar, or nutrition/health claims.
+- No third-party grocery-delivery or meal-kit integration (the in-app combined shopping list is local-only), no meal planning calendar, no nutrition/health claims.
 - No dependency on unavailable iPhone Duo fold APIs (dual-screen is a documented design target and migration path only).
 - No Android build in MVP (iOS is the required primary platform).
 - No AI recipe generation in MVP (a local, gracefully-degrading assistant is a post-MVP exploration).

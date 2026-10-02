@@ -47,6 +47,7 @@ struct RecipeLibraryContent: View {
     @State private var showingCreate = false
     @State private var showingYourData = false
     @State private var showingPantrySuggestions = false
+    @State private var showingGroceryList = false
 
     var body: some View {
         Group {
@@ -118,6 +119,16 @@ struct RecipeLibraryContent: View {
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("What Can I Make")
 
+                // Issue #20: the combined grocery list lives at the same
+                // persistent bottom inset as the pantry entry — toolbar
+                // items disappear under an active search field (issue #3
+                // finding), and the grocery flow must stay reachable.
+                Button("Grocery", systemImage: "cart") {
+                    showingGroceryList = true
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("Grocery List")
+
                 Spacer()
 
                 Button("Add Recipe", systemImage: "plus") {
@@ -148,6 +159,11 @@ struct RecipeLibraryContent: View {
                     .navigationDestination(for: UUID.self) { recipeID in
                         RecipeDetailView(recipeID: recipeID)
                     }
+            }
+        }
+        .sheet(isPresented: $showingGroceryList) {
+            NavigationStack {
+                GroceryListView()
             }
         }
         .onAppear { reload() }

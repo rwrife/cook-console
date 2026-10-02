@@ -80,6 +80,7 @@ final class RecipeRepositoryTests: XCTestCase {
             "v6_timer_schedule_generation",
             "v7_create_pantry",
             "v8_add_scaling_guidance",
+            "v9_create_grocery_list",
         ])
         let timerColumns = try database.read { db in
             try String.fetchAll(

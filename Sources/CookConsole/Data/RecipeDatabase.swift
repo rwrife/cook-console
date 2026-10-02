@@ -226,6 +226,61 @@ enum RecipeDatabase {
                 table.add(column: "cooking_time_guidance", .text)
             }
         }
+        migrator.registerMigration("v9_create_grocery_list") { db in
+            // Issue #20: the combined grocery list. Selections reference
+            // recipes with CASCADE delete — deleting a recipe removes its
+            // selections (and therefore its contributions) predictably;
+            // editing a recipe never touches selections, which keeps the
+            // derived-check state stable across edits (acceptance criterion).
+            // No per-selection is_checked column ON PURPOSE: check state
+            // lives per (selection, ingredient key) in
+            // grocery_selection_checks below. A selection-level flag would
+            // cascade one merged-line tap across every ingredient of the
+            // other contributing recipes.
+            try db.create(table: "grocery_selections") { table in
+                table.column("id", .text).primaryKey()
+                table.column("recipe_id", .text)
+                    .notNull()
+                    .references("recipes", onDelete: .cascade)
+                table.column("servings", .double).notNull().check(sql: "servings > 0 AND servings < 1e9")
+                table.column("position", .integer).notNull().check(sql: "position >= 0")
+            }
+            try db.create(
+                index: "grocery_selections_position",
+                on: "grocery_selections",
+                columns: ["position", "id"]
+            )
+            // Check state lives per (selection, ingredient name key): a
+            // merged line is checked iff every contributing selection has
+            // its row for that key checked. Per-SELECTION flags would
+            // cascade one merged tap across unrelated ingredients of the
+            // other recipe; per-key rows cannot.
+            try db.create(table: "grocery_selection_checks") { table in
+                table.column("selection_id", .text)
+                    .notNull()
+                    .references("grocery_selections", onDelete: .cascade)
+                table.column("ingredient_key", .text).notNull().check(
+                    sql: "length(ingredient_key) > 0 AND length(ingredient_key) < 200"
+                )
+                table.column("is_checked", .boolean).notNull().defaults(to: false)
+                    .check(sql: "is_checked IN (0, 1)")
+                table.primaryKey(["selection_id", "ingredient_key"])
+            }
+            try db.create(table: "grocery_manual_items") { table in
+                table.column("id", .text).primaryKey()
+                table.column("name", .text).notNull().check(
+                    sql: "length(trim(name, \(foundationWhitespaceSQL))) > 0"
+                )
+                table.column("is_checked", .boolean).notNull().defaults(to: false)
+                    .check(sql: "is_checked IN (0, 1)")
+                table.column("position", .integer).notNull().check(sql: "position >= 0")
+            }
+            try db.create(
+                index: "grocery_manual_items_position",
+                on: "grocery_manual_items",
+                columns: ["position", "id"]
+            )
+        }
         return migrator
     }
 }
