@@ -78,14 +78,22 @@ final class GroceryListUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Grocery provenance Olive oil"].label.contains("Pasta Dinner"))
 
         // 5. Manual item: type, add, and see it lead the Shopping summary.
-        //    Same type-then-tap discipline as the pantry UI test (the Add
-        //    button sits above the keyboard and stays hittable).
+        //    The prior scrolls can leave the entry field clipped behind the
+        //    sheet nav bar — an existence-then-tap synthesizes onto dead
+        //    space and the field never takes keyboard focus (run
+        //    36965426705). Realize + geometry-gate first (DataOwnership
+        //    discipline), then type-then-tap: the Add button stays hittable
+        //    above the keyboard.
         let field = app.textFields["Grocery entry field"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        scrollToExists(field)
+        scrollUntilVisible(field)
         field.tap()
         field.typeText("Paper towels")
         app.buttons["Add grocery item"].tap()
         XCTAssertTrue(app.staticTexts["Grocery summary"].label.contains("to buy"), app.staticTexts["Grocery summary"].label)
+        // Dismiss the keyboard so its window never consumes the gestures in
+        // steps 6-7 (keyboard-swallow pitfall, gift-vault run 35986475990).
+        dismissKeyboardIfNeeded()
 
         // 6. Check the merged olive oil line; the summary count drops.
         scrollToExists(app.buttons["Check recipe line Olive oil"])
@@ -114,6 +122,26 @@ final class GroceryListUITests: XCTestCase {
     }
 
     // MARK: - Helpers (same discipline as the other UI suites)
+
+    /// Keyboard dismissal with the proven disappearance API (RecipeWorkflow
+    /// pitfall): a leftover keyboard silently swallows every later gesture.
+    private func dismissKeyboardIfNeeded() {
+        let keyboard = app.keyboards.firstMatch
+        guard keyboard.waitForExistence(timeout: 2) else { return }
+        let done = app.buttons["Done Editing"]
+        if done.waitForExistence(timeout: 3), done.isHittable {
+            done.tap()
+        } else {
+            // No bridge for the toolbar item (searchable lesson): fall back
+            // to a window-level end-editing via the app's own Done flow is
+            // impossible here, so swipe the field area down instead.
+            app.swipeDown()
+        }
+        XCTAssertTrue(
+            keyboard.waitForNonExistence(timeout: 10),
+            "Keyboard remained visible after dismissal attempt.\n\(keyboard.debugDescription)"
+        )
+    }
 
     private func tapWhenHittable(_ element: XCUIElement) {
         XCTAssertTrue(element.waitForExistence(timeout: 5), element.debugDescription)
