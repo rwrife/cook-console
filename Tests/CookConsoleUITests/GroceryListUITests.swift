@@ -70,6 +70,9 @@ final class GroceryListUITests: XCTestCase {
             app.staticTexts["Servings for Pasta Dinner"].label.contains("1/2"),
             app.staticTexts["Servings for Pasta Dinner"].label
         )
+        // The tap recomputes the snapshot and remounts lazy rows away from
+        // the current viewport — realize before the geometry gate.
+        scrollToExists(app.staticTexts["Grocery provenance Olive oil"])
         scrollUntilVisible(app.staticTexts["Grocery provenance Olive oil"])
         // The list re-merged; the oil row still carries both provenances.
         XCTAssertTrue(app.staticTexts["Grocery provenance Olive oil"].label.contains("Pasta Dinner"))
