@@ -86,7 +86,7 @@ struct GroceryListView: View {
                             .accessibilityLabel("Remove \(item.name)")
                             .accessibilityIdentifier("Remove manual \(item.name)")
                         }
-                        .accessibilityIdentifier("Manual line \(item.name)")
+                        // No container identifier (child fan-out lesson).
                     }
                 }
             }
@@ -164,6 +164,10 @@ struct GroceryListView: View {
         .onAppear { store.loadGroceryList() }
     }
 
+    /// NOTE: no `.accessibilityIdentifier` on the row container — an
+    /// identifier on a multi-element row overwrites its children's
+    /// identifiers (issue #19 lesson), which clobbers the stepper/label
+    /// queries the UI test needs. Identity lives on each control instead.
     @ViewBuilder
     private func selectionRow(_ selection: GrocerySelection) -> some View {
         let title = store.recipe(id: selection.recipeID)?.title ?? "Deleted recipe"
@@ -171,6 +175,7 @@ struct GroceryListView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
+                    .accessibilityIdentifier("Selection title \(title)")
                 HStack(spacing: 8) {
                     Button {
                         store.updateGrocerySelectionServings(
@@ -213,7 +218,6 @@ struct GroceryListView: View {
             .accessibilityLabel("Remove \(title) from list")
             .accessibilityIdentifier("Remove selection \(title)")
         }
-        .accessibilityIdentifier("Grocery selection \(title)")
     }
 
     @ViewBuilder
@@ -227,13 +231,15 @@ struct GroceryListView: View {
                 store.setGroceryRecipeLineChecked(key: line.normalizedKey, isChecked: !line.isChecked)
             }
             VStack(alignment: .leading, spacing: 4) {
-                // One combined accessibility element per row: identifier
-                // fan-out on multi-element rows breaks XCUITest matching
-                // (issue #19 lesson), so identity lives on the row itself
-                // and the check button keeps its own.
+                // NO identifier on the row container: identifiers on a
+                // multi-element row overwrite every child's identifier
+                // (issue #19 lesson — proved again by run 36954402316
+                // where 'Check recipe line Olive oil' surfaced under the
+                // container's id). Identity lives on each control.
                 Text(rowText(line))
                     .strikethrough(line.isChecked)
                     .foregroundStyle(line.isChecked ? .secondary : .primary)
+                    .accessibilityIdentifier("Grocery row text \(line.name)")
                 if !line.sources.isEmpty {
                     Text("For: \(line.sources.joined(separator: "; "))")
                         .font(.caption)
@@ -242,7 +248,6 @@ struct GroceryListView: View {
                 }
             }
         }
-        .accessibilityIdentifier("Grocery line \(line.name)")
     }
 
     private func rowText(_ line: GroceryLine) -> String {
