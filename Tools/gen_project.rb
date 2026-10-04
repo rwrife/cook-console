@@ -20,6 +20,11 @@ app.add_file_references(
 )
 
 app.resources_build_phase.add_file_reference(project.main_group.new_file('Resources/Assets.xcassets'))
+# Issue #21: curated desk-review pack ships as a blue folder reference so
+# Bundle.main finds it at subdirectory 'ReviewPack'.
+review_pack_ref = project.main_group.new_reference(File.join(Dir.pwd, 'ReviewPack'))
+review_pack_ref.last_known_file_type = 'folder'
+app.resources_build_phase.add_file_reference(review_pack_ref)
 
 # --- Unit test target ------------------------------------------------------
 tests = project.new_target(:unit_test_bundle, 'CookConsoleTests', :ios, '26.0')

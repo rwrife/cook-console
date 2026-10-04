@@ -48,6 +48,7 @@ struct RecipeLibraryContent: View {
     @State private var showingYourData = false
     @State private var showingPantrySuggestions = false
     @State private var showingGroceryList = false
+    @State private var showingReviewBoard = false
 
     var body: some View {
         Group {
@@ -129,6 +130,15 @@ struct RecipeLibraryContent: View {
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("Grocery List")
 
+                // Issue #21: review/kitchen-test status needs a persistent
+                // footer entry too (toolbar items vanish under active
+                // search, issue #3 finding).
+                Button("Review", systemImage: "checkmark.seal") {
+                    showingReviewBoard = true
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("Recipe Review")
+
                 Spacer()
 
                 Button("Add Recipe", systemImage: "plus") {
@@ -164,6 +174,12 @@ struct RecipeLibraryContent: View {
         .sheet(isPresented: $showingGroceryList) {
             NavigationStack {
                 GroceryListView()
+            }
+        }
+        .sheet(isPresented: $showingReviewBoard) {
+            NavigationStack {
+                RecipeReviewBoardView()
+                    .onAppear { store.loadRecipeReviews() }
             }
         }
         .onAppear { reload() }
