@@ -91,11 +91,12 @@ struct RecipeReviewBoardView: View {
                     .accessibilityIdentifier("Provenance \(row.title)")
             }
             if row.exceptionCount > 0 {
+                // Borderless (not .link — .link is unavailable on iOS).
                 Button("\(row.exceptionCount) editorial exception\(row.exceptionCount == 1 ? "" : "s")") {
                     // Exceptions carry justifications in the pack; the
                     // button keeps them discoverable instead of silent.
                 }
-                .buttonStyle(.link)
+                .buttonStyle(.borderless)
                 .accessibilityIdentifier("Exceptions \(row.title)")
             }
         }
