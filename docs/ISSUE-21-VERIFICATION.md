@@ -10,7 +10,7 @@
 | Persistence | migration `v10_create_recipe_review_ledger` (`recipe_reviews`, `kitchen_test_observations`) + `Data/RecipeReviewRepository.swift` (upsert metadata, append-only observations, FK-cascading delete, observations clear the queue slot) |
 | Review pack | `ReviewPack/RecipeReviewPack.starter-seed-v1.json` — desk-review status, provenance, justified exceptions, prioritized queue for the 6 starter-seed recipes; bundled as a blue-folder resource |
 | CI gates (AC #6) | `Tests/CookConsoleTests/RecipeReviewLedgerTests.swift` — bidirectional status↔audit gates (a `desk_review_passed` claim must audit clean; an `issues_open` claim must still reproduce), no-tested-without-evidence canary, seed↔pack coverage, queue/gap-summary determinism, repository round-trip/FK/validation tests |
-| In-app review board (AC #4/#5) | `Features/RecipeReviewBoardView.swift` — library footer "Review" entry, coverage banner, per-recipe desk/kitchen badges, provenance, queue ranks, and a kitchen-test recorder with domain-enforced mandatory notes. `RecipeReviewBoardUITests` covers the journey |
+| In-app review board (AC #4/#5) | `Features/RecipeReviewBoardView.swift` — library toolbar "Recipe Review" entry, coverage banner, per-recipe desk/kitchen badges, provenance, queue ranks, and a kitchen-test recorder with domain-enforced mandatory notes. `RecipeReviewBoardUITests` covers the journey |
 
 ## Honest status of the "100 recipes" premise
 

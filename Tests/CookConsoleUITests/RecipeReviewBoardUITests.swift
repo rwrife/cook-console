@@ -74,7 +74,8 @@ final class RecipeReviewBoardUITests: XCTestCase {
     private func openReviewBoard() {
         let review = app.buttons["Recipe Review"]
         XCTAssertTrue(review.waitForExistence(timeout: 5), app.debugDescription)
-        scrollUntilVisible(review)
+        // Toolbar is outside the scrolling List. Scrolling the List here
+        // cannot change the button's frame and can hide unrelated content.
         tapWhenHittable(review)
         XCTAssertTrue(app.navigationBars["Recipe Review"].waitForExistence(timeout: 5))
     }
@@ -132,7 +133,7 @@ final class RecipeReviewBoardUITests: XCTestCase {
     /// #20 finding): keep scrolling until the element's midY clears the
     /// nav bar and sits inside the scroller, where a center tap lands.
     private func scrollUntilVisible(_ element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 5), app.debugDescription)
+        scrollToExists(element)
         let scroller: XCUIElement
         if app.collectionViews.firstMatch.waitForExistence(timeout: 3) {
             scroller = app.collectionViews.firstMatch

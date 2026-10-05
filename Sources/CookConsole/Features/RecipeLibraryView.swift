@@ -111,6 +111,14 @@ struct RecipeLibraryContent: View {
                 }
                 .accessibilityIdentifier("Your data")
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingReviewBoard = true
+                } label: {
+                    Label("Recipe Review", systemImage: "checkmark.seal")
+                }
+                .accessibilityIdentifier("Recipe Review")
+            }
         }
         .safeAreaInset(edge: .bottom) {
             HStack {
@@ -129,15 +137,6 @@ struct RecipeLibraryContent: View {
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("Grocery List")
-
-                // Issue #21: review/kitchen-test status needs a persistent
-                // footer entry too (toolbar items vanish under active
-                // search, issue #3 finding).
-                Button("Review", systemImage: "checkmark.seal") {
-                    showingReviewBoard = true
-                }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("Recipe Review")
 
                 Spacer()
 
