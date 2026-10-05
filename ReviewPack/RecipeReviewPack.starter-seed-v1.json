@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "pack_version": "2026.10",
+  "notes": "Desk-review + kitchen-test ledger for the starter seed catalog (issue #21). review_status describes ONLY desk/editorial evidence; kitchen-tested claims live exclusively in observations with reproducible human notes. CI enforces: status==desk_review_passed iff the editorial audit (with these exceptions) has zero blocking findings, and desk_review_issues_open iff at least one blocking finding remains.",
+  "recipes": [
+    {
+      "id": "A578C8F0-9F2B-58FC-AA67-FF38B46FF128",
+      "title": "Creamy Tomato Soup",
+      "source": "starter-seed-v1",
+      "source_provenance": "Tools/seed_screenshot_recipes.py (starter seed, 2026-09 demo content)",
+      "review_status": "desk_review_passed",
+      "content_revision": 1,
+      "editorial_exceptions": [],
+      "test_priority": 4,
+      "observations": []
+    },
+    {
+      "id": "2912DC9E-2EA2-5E43-80CC-E20039DDA5FD",
+      "title": "Lemon Herb Rice",
+      "source": "starter-seed-v1",
+      "source_provenance": "Tools/seed_screenshot_recipes.py (starter seed, 2026-09 demo content)",
+      "review_status": "desk_review_passed",
+      "content_revision": 1,
+      "editorial_exceptions": [],
+      "test_priority": 6,
+      "observations": [],
+      "review_note": "Title says 'Herb' and step 3 says 'herbs' with no herb in the list: the generic word 'herb' is deliberately outside the ingredient glossary (style vocabulary, not a specific ingredient), so no finding fires."
+    },
+    {
+      "id": "5CB15ECD-1506-57A3-8709-493071179452",
+      "title": "Roasted Carrots",
+      "source": "starter-seed-v1",
+      "source_provenance": "Tools/seed_screenshot_recipes.py (starter seed, 2026-09 demo content)",
+      "review_status": "desk_review_passed",
+      "content_revision": 1,
+      "editorial_exceptions": [],
+      "test_priority": 5,
+      "observations": [],
+      "review_note": "Step 2 carries an explicit oven temperature (200C) via step 1; doneness is cue-based ('tender and golden at the edges'), not elapsed time."
+    },
+    {
+      "id": "B43F0824-4BE2-5331-93A5-ED91EC0D073C",
+      "title": "Sunday Pancakes",
+      "source": "starter-seed-v1",
+      "source_provenance": "Tools/seed_screenshot_recipes.py (starter seed, 2026-09 demo content)",
+      "review_status": "desk_review_passed",
+      "content_revision": 1,
+      "editorial_exceptions": [
+        {
+          "phrase": "flour",
+          "justification": "Batter-style recipe: step 1 references the whole list collectively ('Whisk ingredients into a smooth batter'); per-item restatement is a deliberate editorial style for batters."
+        },
+        {
+          "phrase": "milk",
+          "justification": "Batter-style recipe: step 1 references the whole list collectively; restating each liquid adds noise without information."
+        },
+        {
+          "phrase": "egg",
+          "justification": "Batter-style recipe: step 1 references the whole list collectively; restating each binder adds noise without information."
+        }
+      ],
+      "test_priority": 2,
+      "observations": [],
+      "review_note": "Flour/milk/egg exceptions approved 2026-10-04 as batter style; physical test prioritized because batter recipes are the style policy's highest-risk family (ratios matter)."
+    },
+    {
+      "id": "827F7F02-5285-5BF5-A345-AB6EA30E3D77",
+      "title": "Garlic Butter Pasta",
+      "source": "starter-seed-v1",
+      "source_provenance": "Tools/seed_screenshot_recipes.py (starter seed, 2026-09 demo content)",
+      "review_status": "desk_review_passed",
+      "content_revision": 1,
+      "editorial_exceptions": [],
+      "test_priority": 3,
+      "observations": [],
+      "review_note": "'salted water' tokenizes as one word, not the exempt 'salt'; doneness cue 'until al dente' present."
+    },
+    {
+      "id": "30A400DD-6A4C-5E83-967C-68DC11A02BA6",
+      "title": "Chickpea Salad",
+      "source": "starter-seed-v1",
+      "source_provenance": "Tools/seed_screenshot_recipes.py (starter seed, 2026-09 demo content)",
+      "review_status": "desk_review_issues_open",
+      "content_revision": 1,
+      "editorial_exceptions": [],
+      "test_priority": 1,
+      "observations": [],
+      "review_note": "OPEN DEFECT found by the 2026-10-04 editorial audit: step 2 uses lemon juice but the ingredient list omits it. Correct fix is a data revision (add Lemon Juice, bump content_revision), NOT an exception; no recipe may be marked tested while a defect is open."
+    }
+  ]
+}

@@ -281,6 +281,53 @@ enum RecipeDatabase {
                 columns: ["position", "id"]
             )
         }
+        migrator.registerMigration("v10_create_recipe_review_ledger") { db in
+            // Issue #21: per-recipe desk-review provenance + the physical
+            // kitchen-test ledger. Both CASCADE on recipe delete — when a
+            // recipe is gone its review trail is history, not a live
+            // invariant. kitchen_test_status is deliberately NOT a column:
+            // it is derived from observations so no write path can claim
+            // "passed" without a reproducible test note.
+            try db.create(table: "recipe_reviews") { table in
+                table.column("recipe_id", .text)
+                    .primaryKey()
+                    .references("recipes", onDelete: .cascade)
+                table.column("review_status", .text).notNull().check(
+                    sql: "review_status IN ('unreviewed', 'desk_review_passed', 'desk_review_issues_open')"
+                )
+                table.column("source_provenance", .text)
+                table.column("content_revision", .integer).notNull().defaults(to: 1)
+                    .check(sql: "content_revision >= 1")
+                // JSON array of {phrase, justification} — an exception
+                // without a justification cannot be constructed in the
+                // domain, so anything persisted is justified.
+                table.column("editorial_exceptions", .text).notNull().defaults(to: "[]")
+                table.column("test_priority", .integer).check(
+                    sql: "test_priority IS NULL OR test_priority >= 1"
+                )
+            }
+            try db.create(table: "kitchen_test_observations") { table in
+                table.column("id", .text).primaryKey()
+                table.column("recipe_id", .text)
+                    .notNull()
+                    .references("recipes", onDelete: .cascade)
+                table.column("tested_at", .datetime).notNull()
+                table.column("result", .text).notNull().check(
+                    sql: "result IN ('passed', 'failed')"
+                )
+                table.column("notes", .text).notNull().check(
+                    sql: "length(trim(notes, \(foundationWhitespaceSQL))) > 0"
+                )
+                table.column("tester", .text).notNull().check(
+                    sql: "length(trim(tester, \(foundationWhitespaceSQL))) > 0"
+                )
+            }
+            try db.create(
+                index: "kitchen_test_observations_recipe",
+                on: "kitchen_test_observations",
+                columns: ["recipe_id", "tested_at"]
+            )
+        }
         return migrator
     }
 }

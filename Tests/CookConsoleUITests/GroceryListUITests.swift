@@ -90,22 +90,28 @@ final class GroceryListUITests: XCTestCase {
         field.tap()
         field.typeText("Paper towels")
         app.buttons["Add grocery item"].tap()
-        XCTAssertTrue(app.staticTexts["Grocery summary"].label.contains("to buy"), app.staticTexts["Grocery summary"].label)
         // Dismiss the keyboard so its window never consumes the gestures in
         // steps 6-7 (keyboard-swallow pitfall, gift-vault run 35986475990).
         dismissKeyboardIfNeeded()
+        // Adding the item remounts the lazy List. The summary can disappear
+        // from the AX tree until the top of the sheet is realized again.
+        let summaryText = app.staticTexts["Grocery summary"]
+        scrollToExists(summaryText)
+        XCTAssertTrue(summaryText.label.contains("to buy"), summaryText.label)
 
         // 6. Check the merged olive oil line; the summary count drops.
+        scrollToExists(summaryText)
+        let beforeLabel = summaryText.label
         scrollToExists(app.buttons["Check recipe line Olive oil"])
         scrollUntilVisible(app.buttons["Check recipe line Olive oil"])
-        let beforeLabel = app.staticTexts["Grocery summary"].label
         tapWhenHittable(app.buttons["Check recipe line Olive oil"])
         // Poll for the count to move (recompute round-trips GRDB).
-        var summary = app.staticTexts["Grocery summary"].label
+        scrollToExists(summaryText)
+        var summary = summaryText.label
         var deadline = Date().addingTimeInterval(10)
         while summary == beforeLabel && Date() < deadline {
             Thread.sleep(forTimeInterval: 0.25)
-            summary = app.staticTexts["Grocery summary"].label
+            summary = summaryText.label
         }
         XCTAssertNotEqual(summary, beforeLabel, "checking a merged line must change the to-buy count")
 

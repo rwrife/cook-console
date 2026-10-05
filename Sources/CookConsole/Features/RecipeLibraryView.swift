@@ -48,6 +48,7 @@ struct RecipeLibraryContent: View {
     @State private var showingYourData = false
     @State private var showingPantrySuggestions = false
     @State private var showingGroceryList = false
+    @State private var showingReviewBoard = false
 
     var body: some View {
         Group {
@@ -110,6 +111,14 @@ struct RecipeLibraryContent: View {
                 }
                 .accessibilityIdentifier("Your data")
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingReviewBoard = true
+                } label: {
+                    Label("Recipe Review", systemImage: "checkmark.seal")
+                }
+                .accessibilityIdentifier("Recipe Review")
+            }
         }
         .safeAreaInset(edge: .bottom) {
             HStack {
@@ -164,6 +173,12 @@ struct RecipeLibraryContent: View {
         .sheet(isPresented: $showingGroceryList) {
             NavigationStack {
                 GroceryListView()
+            }
+        }
+        .sheet(isPresented: $showingReviewBoard) {
+            NavigationStack {
+                RecipeReviewBoardView()
+                    .onAppear { store.loadRecipeReviews() }
             }
         }
         .onAppear { reload() }

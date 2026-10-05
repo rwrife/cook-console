@@ -81,6 +81,7 @@ final class RecipeRepositoryTests: XCTestCase {
             "v7_create_pantry",
             "v8_add_scaling_guidance",
             "v9_create_grocery_list",
+            "v10_create_recipe_review_ledger",
         ])
         let timerColumns = try database.read { db in
             try String.fetchAll(
@@ -99,6 +100,8 @@ final class RecipeRepositoryTests: XCTestCase {
         XCTAssertTrue(tables.contains("timer_completion_alerts"))
         XCTAssertTrue(tables.contains("pantry_items"))
         XCTAssertTrue(tables.contains("app_metadata"))
+        XCTAssertTrue(tables.contains("recipe_reviews"))
+        XCTAssertTrue(tables.contains("kitchen_test_observations"))
     }
 
     func testV1DatabaseUpgradesToLatestWithoutLosingRows() throws {

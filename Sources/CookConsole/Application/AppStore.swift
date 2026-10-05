@@ -151,6 +151,22 @@ final class AppStore: ObservableObject {
                         steps: [try RecipeStep(instruction: "Mix and serve.")]
                     ))
                 }
+                if ProcessInfo.processInfo.arguments.contains("-ui-testing-review-fixture") {
+                    // Issue #21: a LOCAL recipe that is deliberately NOT
+                    // in the review pack — the board must show it as
+                    // notInReviewPack and it accepts a kitchen-test
+                    // observation (FK to recipes).
+                    try recipeRepository.create(Recipe(
+                        title: "Review Board Roast",
+                        servings: 2,
+                        ingredients: [
+                            try Ingredient(name: "Water", amount: 2, unit: .cup),
+                        ],
+                        steps: [
+                            try RecipeStep(instruction: "Simmer the water until reduced by half.", timerDuration: 600),
+                        ]
+                    ))
+                }
                 if ProcessInfo.processInfo.arguments.contains("-ui-testing-scaling-fixture") {
                     try recipeRepository.create(Recipe(
                         title: "Scaling Cake",
@@ -268,6 +284,86 @@ final class AppStore: ObservableObject {
 
     func loadGroceryList() {
         reloadGrocery()
+    }
+
+    // MARK: - Recipe review board (issue #21)
+
+    private lazy var reviewRepository = RecipeReviewRepository(database: repository.database)
+
+    /// Desk-review status + exceptions render live from the curated pack
+    /// bundled with the app source, so they can never drift from the
+    /// content being reviewed. The database stores ONLY physical kitchen
+    /// observations (the durable user-visible evidence); desk fields in
+    /// the DB would duplicate pack truth and go stale.
+    @Published private(set) var reviewPack: RecipeReviewPack?
+    @Published private(set) var reviewRecords: [RecipeReviewRecord] = []
+    @Published private(set) var reviewBoardRows: [RecipeReviewBoardRow] = []
+    private var reviewMetadataAdopted = false
+
+    /// One-time (and refresh-safe) adoption of curated pack metadata.
+    func loadRecipeReviews() {
+        do {
+            if !reviewMetadataAdopted {
+                reviewPack = try Self.loadBundledReviewPack()
+                let packRecords = try reviewPack.map { pack in
+                    try pack.recipes.map { try $0.makeReviewRecord() }
+                } ?? []
+                try reviewRepository.adoptPackMetadata(packRecords)
+                reviewMetadataAdopted = true
+            }
+            reviewRecords = try reviewRepository.fetchAll()
+            if reviewPack == nil {
+                reviewPack = try? Self.loadBundledReviewPack()
+            }
+            refreshReviewBoardRows()
+        } catch {
+            present(error)
+        }
+    }
+
+    func recordKitchenTestObservation(_ observation: KitchenTestObservation, recipeID: UUID) {
+        do {
+            try reviewRepository.addObservation(observation, recipeID: recipeID)
+            reviewRecords = try reviewRepository.fetchAll()
+            refreshReviewBoardRows()
+        } catch {
+            present(error)
+        }
+    }
+
+    /// Live board rows. The FULL library, never the search-filtered
+    /// `recipes` view — coverage gaps must survive search state (#20
+    /// lesson).
+    private func refreshReviewBoardRows() {
+        do {
+            reviewBoardRows = RecipeReviewBoardRow.build(
+                pack: reviewPack,
+                records: reviewRecords,
+                recipes: try repository.fetchAll()
+            )
+        } catch {
+            present(error)
+        }
+    }
+
+    /// Gap report merged across the pack (desk truth, priorities) and the
+    /// database (durable physical evidence) — never pack-only, so a
+    /// recorded kitchen test immediately leaves the queue.
+    var reviewGapSummary: KitchenTestGapSummary? {
+        guard let reviewPack else { return nil }
+        return KitchenTestGapSummary(packVersion: reviewPack.packVersion, rows: reviewBoardRows)
+    }
+
+    private static func loadBundledReviewPack() throws -> RecipeReviewPack {
+        let filename = "RecipeReviewPack.starter-seed-v1"
+        guard let url = Bundle.main.url(
+            forResource: filename,
+            withExtension: "json",
+            subdirectory: "ReviewPack"
+        ) ?? Bundle.main.url(forResource: filename, withExtension: "json") else {
+            throw RecipeReviewRepositoryError.invalidData("Review pack '\(filename).json' is missing from the bundle")
+        }
+        return try RecipeReviewPack.load(from: url)
     }
 
     func addGrocerySelection(recipeID: UUID) {
