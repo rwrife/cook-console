@@ -131,6 +131,11 @@ struct KitchenTestRecordView: View {
     @State private var result: KitchenTestResult = .passed
     @State private var notes = ""
     @State private var tester = "cook"
+    @FocusState private var focusedField: EvidenceField?
+
+    private enum EvidenceField: Hashable {
+        case notes, tester
+    }
 
     var body: some View {
         Form {
@@ -154,8 +159,10 @@ struct KitchenTestRecordView: View {
             Section {
                 TextField("Reproducible notes (what you cooked, deviations, sensory results)", text: $notes, axis: .vertical)
                     .lineLimit(3...6)
+                    .focused($focusedField, equals: .notes)
                     .accessibilityIdentifier("Test notes field")
                 TextField("Tester", text: $tester)
+                    .focused($focusedField, equals: .tester)
                     .accessibilityIdentifier("Tester field")
             } header: {
                 Text("Evidence")
@@ -170,6 +177,26 @@ struct KitchenTestRecordView: View {
             .accessibilityIdentifier("Save Kitchen Test")
         }
         .navigationTitle("Kitchen Test")
+        .scrollDismissesKeyboard(.immediately)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { dismissKeyboard() }
+                    .accessibilityIdentifier("Done Editing")
+            }
+        }
+    }
+
+    private func dismissKeyboard() {
+        focusedField = nil
+        // The hosted simulator can retain first responder after FocusState
+        // clears; match the proven recipe-editor and grocery-sheet pattern.
+        let activeWindow = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)
+        _ = activeWindow?.endEditing(true)
     }
 
     private func save() {
