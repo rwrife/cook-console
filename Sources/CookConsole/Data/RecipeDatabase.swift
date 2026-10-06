@@ -333,6 +333,26 @@ enum RecipeDatabase {
                 table.add(column: "deleted_at", .datetime)
             }
         }
+        migrator.registerMigration("v12_historical_timer_identity") { db in
+            try db.execute(sql: "DROP TRIGGER cook_timers_valid_identity_insert")
+            try db.execute(sql: """
+                CREATE TRIGGER cook_timers_valid_identity_insert
+                BEFORE INSERT ON cook_timers
+                WHEN NOT EXISTS (
+                    SELECT 1 FROM cook_sessions AS session
+                    WHERE session.id = NEW.cook_session_id
+                      AND session.recipe_id = NEW.recipe_id
+                      AND (
+                          NEW.status IN ('completed', 'cancelled')
+                          OR (session.status = 'active' AND EXISTS (
+                              SELECT 1 FROM recipe_steps AS step
+                              WHERE step.recipe_id = NEW.recipe_id AND step.id = NEW.step_id
+                          ))
+                      )
+                )
+                BEGIN SELECT RAISE(ABORT, 'invalid timer identity'); END
+                """)
+        }
         return migrator
     }
 }

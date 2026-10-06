@@ -8,6 +8,77 @@ import GRDB
 /// the real trigger set, and the real domain validation — the same code the
 /// "Your data" screen calls.
 final class DataTransferServiceTests: XCTestCase {
+    func testReplacementWithRemovedHistoricalStepRoundTripsIntoCleanStore() throws {
+        let (service, database, repository) = try makeService()
+        let recipe = try sampleRecipe()
+        _ = try seedHistory(into: database, repository: repository, recipe: recipe)
+        var incoming = try service.exportDocument()
+        incoming.recipes[0].steps = [incoming.recipes[0].steps[0]]
+        incoming.sessions = []
+        incoming.timers = []
+        incoming.timerEvents = []
+        _ = try service.apply(try service.preview(incoming))
+        let backup = try service.exportDocument()
+        XCTAssertEqual(backup.recipes[0].steps.count, 1)
+        XCTAssertEqual(backup.sessions[0].currentStepIndex, 1)
+        XCTAssertEqual(backup.timers[0].stepID, recipe.steps[1].id)
+        let (clean, _, recovered) = try makeService()
+        _ = try clean.apply(try clean.preview(backup))
+        XCTAssertEqual(try recovered.fetch(id: recipe.id)?.steps.count, 1)
+        XCTAssertEqual(try clean.exportDocument().timers, backup.timers)
+
+        var invalid = backup
+        invalid.timers[0].status = "running"
+        invalid.timers[0].completedAt = nil
+        invalid.timers[0].deadline = Date()
+        invalid.sessions[0].status = "active"
+        invalid.sessions[0].currentStepIndex = 0
+        XCTAssertThrowsError(try clean.preview(invalid))
+        invalid.timers[0].status = "paused"
+        invalid.timers[0].deadline = nil
+        invalid.timers[0].remainingWhenPaused = 60
+        XCTAssertThrowsError(try clean.preview(invalid))
+        invalid = backup
+        invalid.timers[0].status = "running"
+        invalid.timers[0].stepID = recipe.steps[0].id
+        invalid.timers[0].completedAt = nil
+        invalid.timers[0].deadline = Date()
+        XCTAssertThrowsError(try clean.preview(invalid)) // current step, ended session
+        invalid = backup
+        invalid.timers[0].recipeID = UUID()
+        XCTAssertThrowsError(try clean.preview(invalid))
+        invalid = backup
+        let other = try sampleRecipe(title: "Other recipe")
+        invalid.recipes.append(storedCopy(of: other))
+        invalid.timers[0].recipeID = other.id
+        XCTAssertThrowsError(try clean.preview(invalid))
+        invalid = backup
+        invalid.sessions[0].currentStepIndex = -1
+        XCTAssertThrowsError(try clean.preview(invalid))
+    }
+
+    func testReplacementCancelsLiveTimerWhoseStepWasRemovedAndRoundTrips() throws {
+        let (service, database, repository) = try makeService()
+        let recipe = try sampleRecipe()
+        let (session, timer) = try seedHistory(into: database, repository: repository, recipe: recipe)
+        try database.write { db in
+            try db.execute(sql: "UPDATE cook_sessions SET status = 'active', ended_at = NULL WHERE id = ?", arguments: [session.id.uuidString])
+            try db.execute(sql: "UPDATE cook_timers SET status = 'running', completed_at = NULL, deadline = ? WHERE id = ?", arguments: [Date().addingTimeInterval(120), timer.id.uuidString])
+        }
+        var incoming = try service.exportDocument()
+        incoming.recipes[0].steps = [incoming.recipes[0].steps[0]]
+        incoming.sessions = []
+        incoming.timers = []
+        incoming.timerEvents = []
+        _ = try service.apply(try service.preview(incoming))
+        let backup = try service.exportDocument()
+        XCTAssertEqual(backup.timers[0].status, "cancelled")
+        XCTAssertEqual(backup.timers[0].stepName, timer.stepName)
+        XCTAssertEqual(backup.sessions[0].currentStepIndex, 0)
+        let (clean, _, _) = try makeService()
+        _ = try clean.apply(try clean.preview(backup))
+    }
+
     func testPreviewCancelAndStaleApplyAreMutationFree() throws {
         let (service, _, repository) = try makeService()
         try repository.create(sampleRecipe())

@@ -16,6 +16,28 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertThrowsError(try fixture.engine.resume(timerID: timer.id))
     }
 
+    func testLateCompletedTimerExtensionAfterArchiveOrSessionEndIsBenign() throws {
+        for archive in [true, false] {
+            let fixture = try TimerFixture(now: 1_000)
+            let timer = try fixture.start(stepName: "Simmer", duration: 60)
+            try fixture.engine.complete(timerID: timer.id)
+            if archive {
+                try RecipeRepository(database: fixture.database).delete(id: fixture.recipe.id)
+            } else {
+                _ = try fixture.engine.endCookSession(sessionID: fixture.session.id, as: .completed)
+            }
+            for _ in 0..<2 {
+                XCTAssertFalse(try fixture.engine.handleNotificationAction(
+                    identifier: TimerNotification.extendTwoActionIdentifier, timerID: timer.id
+                ))
+            }
+            XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .completed)
+            XCTAssertEqual(try fixture.repository.fetchEvents(timerID: timer.id).map(\.kind), [.started, .fired])
+            XCTAssertTrue(fixture.notifications.scheduled.isEmpty)
+            XCTAssertTrue(try fixture.engine.pendingCompletions().isEmpty)
+        }
+    }
+
     func testStartPersistsIdentitiesDeadlineAndStartedLogAndSchedulesNotification() throws {
         let fixture = try TimerFixture(now: 1_000)
 

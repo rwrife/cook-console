@@ -474,33 +474,6 @@ final class DataTransferService: @unchecked Sendable {
                 }
             }
 
-            // A backup restores history (timers whose sessions ended in the
-            // past), and the live-editing `cook_timers_valid_identity_insert`
-            // trigger requires the session to be 'active' at insert time.
-            // Rather than dropping triggers, the import satisfies them the
-            // way the app itself does: every session a restored timer
-            // touches is flipped to 'active' for the duration of the insert
-            // and restored to its true final status afterwards. Column
-            // shape rules (running=deadline, paused=remaining, ended=
-            // completed_at) are already honored by the stored columns.
-            var sessionFinalStatus: [String: String] = [:]
-            func ensureSessionActiveForTimerInsert(_ sessionKey: String) throws {
-                guard sessionFinalStatus[sessionKey] == nil else { return }
-                let status: String? = try String.fetchOne(
-                    db,
-                    sql: "SELECT status FROM cook_sessions WHERE id = ?",
-                    arguments: [sessionKey]
-                )
-                guard let status else { return } // FK check catches unknown sessions
-                sessionFinalStatus[sessionKey] = status
-                if status != CookSessionStatus.active.rawValue {
-                    try db.execute(
-                        sql: "UPDATE cook_sessions SET status = ? WHERE id = ?",
-                        arguments: [CookSessionStatus.active.rawValue, sessionKey]
-                    )
-                }
-            }
-
             for stored in document.sessions {
                 let key = stored.id.uuidString
                 guard !existingSessionIDs.contains(key) else {
@@ -531,10 +504,9 @@ final class DataTransferService: @unchecked Sendable {
                     outcome.timersSkipped += 1
                     continue
                 }
-                // DB-aware step existence: when the timer's recipe lives in
-                // the store (not the file), validateSemantics could not see
-                // its steps. The identity trigger would abort the whole
-                // transaction otherwise — report the item instead.
+                // Live timers must resolve against the merged current steps.
+                // Ended timers retain a historical UUID and stepName snapshot;
+                // the insert trigger still enforces recipe/session identity.
                 let stepExists = (try Bool.fetchOne(
                     db,
                     sql: """
@@ -545,13 +517,12 @@ final class DataTransferService: @unchecked Sendable {
                         """,
                     arguments: [stored.recipeID.uuidString, stored.stepID.uuidString]
                 )) ?? false
-                guard stepExists else {
+                guard stepExists || ["completed", "cancelled"].contains(stored.status) else {
                     throw DataTransferError.invalidItem(
                         path: "timer \(key)",
                         reason: "references step \(stored.stepID.uuidString), which does not exist in the recipe it names."
                     )
                 }
-                try ensureSessionActiveForTimerInsert(stored.cookSessionID.uuidString)
                 try db.execute(
                     sql: """
                         INSERT INTO cook_timers
@@ -576,17 +547,6 @@ final class DataTransferService: @unchecked Sendable {
                     ]
                 )
                 outcome.timersAdded += 1
-            }
-
-            // Restore the true final status of every session that was
-            // temporarily reactivated to satisfy the timer-insert trigger.
-            for (sessionKey, finalStatus) in sessionFinalStatus {
-                if finalStatus != CookSessionStatus.active.rawValue {
-                    try db.execute(
-                        sql: "UPDATE cook_sessions SET status = ? WHERE id = ?",
-                        arguments: [finalStatus, sessionKey]
-                    )
-                }
             }
 
             for stored in document.timerEvents {
@@ -773,7 +733,8 @@ final class DataTransferService: @unchecked Sendable {
                 throw DataTransferError.invalidItem(path: path, reason: "unknown status '\(stored.status)'.")
             }
             let stepCount = recipeStepCounts[stored.recipeID] ?? 0
-            guard stepCount > 0, stored.currentStepIndex >= 0, stored.currentStepIndex < stepCount else {
+            guard stepCount > 0, stored.currentStepIndex >= 0,
+                  stored.status != "active" || stored.currentStepIndex < stepCount else {
                 throw DataTransferError.invalidItem(
                     path: path,
                     reason: "current step \(stored.currentStepIndex) is outside the recipe."
@@ -787,20 +748,20 @@ final class DataTransferService: @unchecked Sendable {
             guard timerIDs.insert(stored.id).inserted else {
                 throw DataTransferError.invalidItem(path: path, reason: "duplicate timer ID in file.")
             }
-            guard let steps = recipeStepIDs[stored.recipeID], steps.contains(stored.stepID) else {
-                throw DataTransferError.invalidItem(
-                    path: path,
-                    reason: "references unknown step \(stored.stepID.uuidString) of recipe \(stored.recipeID.uuidString)."
-                )
-            }
-            guard sessionIDs.contains(stored.cookSessionID) else {
-                throw DataTransferError.invalidItem(
-                    path: path,
-                    reason: "references unknown cook session \(stored.cookSessionID.uuidString)."
-                )
-            }
             guard let status = CookTimerStatus(rawValue: stored.status) else {
                 throw DataTransferError.invalidItem(path: path, reason: "unknown status '\(stored.status)'.")
+            }
+            guard let session = document.sessions.first(where: { $0.id == stored.cookSessionID }),
+                  session.recipeID == stored.recipeID,
+                  let steps = recipeStepIDs[stored.recipeID] else {
+                throw DataTransferError.invalidItem(path: path, reason: "timer recipe/session identity does not match the file.")
+            }
+            // Ended rows use their immutable stepName snapshot and historical
+            // UUID. Live rows must refer to a current step in an active cook.
+            if status == .running || status == .paused {
+                guard steps.contains(stored.stepID), session.status == "active" else {
+                    throw DataTransferError.invalidItem(path: path, reason: "live timer references an unknown current step or inactive session.")
+                }
             }
             guard stored.originalDuration.isFinite, stored.originalDuration > 0 else {
                 throw DataTransferError.invalidItem(path: path, reason: "duration must be finite and > 0.")
@@ -1238,6 +1199,21 @@ final class DataTransferService: @unchecked Sendable {
         try db.execute(sql: "DELETE FROM recipe_steps WHERE recipe_id = ?", arguments: [recipe.id.uuidString])
         try db.execute(sql: "DELETE FROM recipe_tags WHERE recipe_id = ?", arguments: [recipe.id.uuidString])
         try insertRecipeChildren(db, recipe)
+        // Removed steps are historical snapshots, never live cook targets.
+        try db.execute(
+            sql: """
+                UPDATE cook_timers
+                SET status = 'cancelled', deadline = NULL, remaining_when_paused = NULL,
+                    completed_at = ?, schedule_generation = schedule_generation + 1
+                WHERE recipe_id = ? AND status IN ('running', 'paused')
+                  AND step_id NOT IN (SELECT id FROM recipe_steps WHERE recipe_id = ?)
+                """,
+            arguments: [Date(), recipe.id.uuidString, recipe.id.uuidString]
+        )
+        try db.execute(
+            sql: "DELETE FROM timer_completion_alerts WHERE timer_id IN (SELECT id FROM cook_timers WHERE recipe_id = ? AND step_id NOT IN (SELECT id FROM recipe_steps WHERE recipe_id = ?))",
+            arguments: [recipe.id.uuidString, recipe.id.uuidString]
+        )
         try db.execute(
             sql: """
                 UPDATE cook_sessions

@@ -291,13 +291,21 @@ final class TimerEngine {
         let timer = try requiredTimer(timerID)
         if timer.status == .cancelled { return false }
         let actionDate = now()
-        _ = try extend(
-            timerID: timerID,
-            by: seconds,
-            at: actionDate,
-            canRestartCompleted: true
-        )
-        return true
+        do {
+            _ = try extend(
+                timerID: timerID,
+                by: seconds,
+                at: actionDate,
+                canRestartCompleted: true
+            )
+            return true
+        } catch TimerEngineError.invalidTransition {
+            // A delivered action can outlive recipe deletion or session end.
+            // The transactional restart guard is authoritative; clear the
+            // obsolete actionable notification and completion alert.
+            try acknowledgeCompletion(timerID: timerID)
+            return false
+        }
     }
 
     private func restart(

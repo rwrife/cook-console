@@ -193,6 +193,15 @@ final class TimerRepository {
                     SET status = ?, deadline = ?, remaining_when_paused = NULL,
                         completed_at = NULL, schedule_generation = ?
                     WHERE id = ? AND status = 'completed'
+                      AND EXISTS (
+                          SELECT 1 FROM cook_sessions AS session
+                          JOIN recipes AS recipe ON recipe.id = session.recipe_id
+                          JOIN recipe_steps AS step ON step.recipe_id = recipe.id
+                          WHERE session.id = cook_timers.cook_session_id
+                            AND session.recipe_id = cook_timers.recipe_id
+                            AND session.status = 'active' AND recipe.deleted_at IS NULL
+                            AND step.id = cook_timers.step_id
+                      )
                     """,
                 arguments: [
                     timer.status.rawValue,
