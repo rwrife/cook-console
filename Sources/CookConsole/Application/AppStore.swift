@@ -598,13 +598,23 @@ final class AppStore: ObservableObject {
         reloadGrocery()
         do { try timerEngine?.synchronizeNotifications() }
         catch { errorMessage = "Data updated, but timer notification refresh failed: \(error.localizedDescription)" }
-        if let session = consoleSession,
-           (try? repository.fetchCookSession(id: session.id))?.status != .active
-            || (try? repository.fetch(id: session.recipeID)) == nil {
-            consoleSession = nil
-            consoleRecipeID = nil
-            visibleCookSessionID = nil
-            timers = []
+        if let session = consoleSession {
+            do {
+                let persisted = try repository.fetchCookSession(id: session.id)
+                if let persisted, persisted.status == .active,
+                   try repository.fetch(id: persisted.recipeID) != nil {
+                    // Import may clamp the durable position without ending the cook.
+                    // The console must render the persisted session, not its old mirror.
+                    consoleSession = persisted
+                } else {
+                    consoleSession = nil
+                    consoleRecipeID = nil
+                    visibleCookSessionID = nil
+                    timers = []
+                }
+            } catch {
+                errorMessage = "Data updated, but cook session refresh failed: \(error.localizedDescription)"
+            }
         }
         if let presentedCompletionID,
            let pending = try? timerEngine?.pendingCompletions(),
