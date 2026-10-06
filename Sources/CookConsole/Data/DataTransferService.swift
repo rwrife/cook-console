@@ -131,6 +131,14 @@ struct BackupDocument: Codable, Equatable, Sendable {
 
 /// Summary of one applied import, shaped for a user-visible conflict report.
 struct JSONImportOutcome: Equatable, Sendable {
+    /// Existing running/paused rows that become cancelled (not imported timer logs).
+    var existingLiveTimersStopped = 0
+    /// Actual deleted alert/selection rows, including archive cleanup.
+    var completionAlertsRemoved = 0
+    var grocerySelectionsRemoved = 0
+    /// Active rows changed by each operation; a session can be both clamped and abandoned.
+    var activeSessionsClamped = 0
+    var activeSessionsAbandoned = 0
     var recipesArchived = 0
     var recipesAdded = 0
     var recipesSkipped = 0
@@ -160,6 +168,11 @@ struct JSONImportOutcome: Equatable, Sendable {
         if grocerySelectionsSkipped > 0 { parts.append("\(grocerySelectionsSkipped) grocery selections already present") }
         if groceryManualItemsAdded > 0 { parts.append("\(groceryManualItemsAdded) grocery items added") }
         if groceryManualItemsSkipped > 0 { parts.append("\(groceryManualItemsSkipped) grocery items already present") }
+        if existingLiveTimersStopped > 0 { parts.append("\(existingLiveTimersStopped) existing live timers stopped") }
+        if completionAlertsRemoved > 0 { parts.append("\(completionAlertsRemoved) completion alerts removed") }
+        if activeSessionsClamped > 0 { parts.append("\(activeSessionsClamped) active cook sessions clamped") }
+        if activeSessionsAbandoned > 0 { parts.append("\(activeSessionsAbandoned) active cook sessions abandoned") }
+        if grocerySelectionsRemoved > 0 { parts.append("\(grocerySelectionsRemoved) grocery selections removed") }
         return parts.joined(separator: ", ") + "."
     }
 }
@@ -424,6 +437,7 @@ final class DataTransferService: @unchecked Sendable {
 
     private static func merge(_ document: BackupDocument, in db: Database) throws -> JSONImportOutcome {
         var outcome = JSONImportOutcome()
+        let existingLiveTimerIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM cook_timers WHERE status IN ('running', 'paused')"))
         do {
             let existingRecipeIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM recipes"))
             let existingSessionIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM cook_sessions"))
@@ -477,7 +491,7 @@ final class DataTransferService: @unchecked Sendable {
                     if try Self.storedRecipe(db, id: recipe.id) == recipe {
                         outcome.recipesSkipped += 1
                     } else {
-                        try Self.replaceRecipe(db, with: recipe)
+                        try Self.replaceRecipe(db, with: recipe, outcome: &outcome)
                         outcome.recipesReplaced += 1
                     }
                 } else {
@@ -656,8 +670,13 @@ final class DataTransferService: @unchecked Sendable {
         // Archives never restart a cook or contribute shopping suggestions.
         try db.execute(sql: "UPDATE cook_timers SET status = 'cancelled', deadline = NULL, remaining_when_paused = NULL, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP), schedule_generation = schedule_generation + 1 WHERE recipe_id IN (SELECT id FROM recipes WHERE deleted_at IS NOT NULL) AND status IN ('running', 'paused')")
         try db.execute(sql: "DELETE FROM timer_completion_alerts WHERE timer_id IN (SELECT id FROM cook_timers WHERE recipe_id IN (SELECT id FROM recipes WHERE deleted_at IS NOT NULL))")
+        outcome.completionAlertsRemoved += db.changesCount
         try db.execute(sql: "UPDATE cook_sessions SET status = 'abandoned', ended_at = COALESCE(ended_at, CURRENT_TIMESTAMP) WHERE recipe_id IN (SELECT id FROM recipes WHERE deleted_at IS NOT NULL) AND status = 'active'")
+        outcome.activeSessionsAbandoned += db.changesCount
         try db.execute(sql: "DELETE FROM grocery_selections WHERE recipe_id IN (SELECT id FROM recipes WHERE deleted_at IS NOT NULL)")
+        outcome.grocerySelectionsRemoved += db.changesCount
+        let cancelledTimerIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM cook_timers WHERE status = 'cancelled'"))
+        outcome.existingLiveTimersStopped = existingLiveTimerIDs.intersection(cancelledTimerIDs).count
         for stored in document.recipes {
             let deletedAt: Date? = try Date.fetchOne(db, sql: "SELECT deleted_at FROM recipes WHERE id = ?", arguments: [stored.id.uuidString])
             if deletedAt != nil { outcome.recipesArchived += 1 }
@@ -1199,7 +1218,7 @@ final class DataTransferService: @unchecked Sendable {
     /// Replace-in-place: mirrors `RecipeRepository.update` semantics but
     /// stays inside the import transaction. Active cook sessions clamp their
     /// step the same way the regular update path does.
-    private static func replaceRecipe(_ db: Database, with recipe: Recipe) throws {
+    private static func replaceRecipe(_ db: Database, with recipe: Recipe, outcome: inout JSONImportOutcome) throws {
         try db.execute(
             sql: """
                 UPDATE recipes
@@ -1233,6 +1252,7 @@ final class DataTransferService: @unchecked Sendable {
             sql: "DELETE FROM timer_completion_alerts WHERE timer_id IN (SELECT id FROM cook_timers WHERE recipe_id = ? AND step_id NOT IN (SELECT id FROM recipe_steps WHERE recipe_id = ?))",
             arguments: [recipe.id.uuidString, recipe.id.uuidString]
         )
+        outcome.completionAlertsRemoved += db.changesCount
         try db.execute(
             sql: """
                 UPDATE cook_sessions
@@ -1241,6 +1261,7 @@ final class DataTransferService: @unchecked Sendable {
                 """,
             arguments: [recipe.steps.count - 1, recipe.id.uuidString, recipe.steps.count]
         )
+        outcome.activeSessionsClamped += db.changesCount
     }
 
     private static func insertRecipeChildren(_ db: Database, _ recipe: Recipe) throws {

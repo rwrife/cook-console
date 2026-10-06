@@ -74,7 +74,7 @@ struct YourDataView: View {
                     }
                     .accessibilityIdentifier("Preview recovery fixture")
                 }
-                Text("Preview before applying. Matching recipe IDs: backup content wins; identical recipes stay unchanged. Existing history and grocery IDs stay unchanged; new IDs are added. Items missing from a file are kept. Deleted recipes remain deleted even when an older backup has no deletion dates; their active cooks/timers stop and grocery selections are excluded. Imported active timers for live recipes use their saved deadlines. Timers for removed recipe steps are exported as stopped history and will not restart on recovery. Pantry and reviews remain unchanged. Cancel changes nothing. If your data changes after preview, choose the file again to re-preview.")
+                Text("Preview before applying. Matching recipe IDs: backup content wins; identical recipes stay unchanged. Existing history and grocery IDs stay unchanged; new IDs are added. Items missing from a file are kept. Deleted recipes remain deleted even when an older backup has no deletion dates; their active cooks/timers stop and grocery selections are excluded. Replacing a live recipe and removing steps stops running/paused timers for removed steps, clears their completion alerts, and clamps the active cook’s current position to the last remaining step when needed. Imported active timers for live recipes use their saved deadlines. Timers for removed recipe steps are exported as stopped history and will not restart on recovery. Pantry and reviews remain unchanged. Cancel changes nothing. If your data changes after preview, choose the file again to re-preview.")
                     .font(.footnote)
                     .accessibilityIdentifier("Import conflict policy")
                 if let summary = store.importSummary {
@@ -136,7 +136,7 @@ struct YourDataView: View {
             if let preview {
                 NavigationStack {
                     List {
-                        Text("Backup content replaces matching recipes; existing history and grocery IDs are kept. Deleted recipes remain archived; their active cooks/timers stop and grocery selections are excluded. Imported active timers for live recipes use saved deadlines. Timers for removed recipe steps are exported as stopped history and will not restart on recovery. Items absent from the file, pantry, and reviews are kept.")
+                        Text("Backup content replaces matching recipes; existing history and grocery IDs are kept. Deleted recipes remain archived; their active cooks/timers stop and grocery selections are excluded. Replacing a live recipe and removing steps stops running/paused timers for removed steps, clears their completion alerts, and clamps the active cook’s current position to the last remaining step when needed. Imported active timers for live recipes use saved deadlines. Timers for removed recipe steps are exported as stopped history and will not restart on recovery. Items absent from the file, pantry, and reviews are kept.")
                             .accessibilityIdentifier("Preview conflict policy")
                         Text(preview.outcome.summaryText).accessibilityIdentifier("Import preview summary")
                         ForEach(Array(preview.recipeOutcomes.enumerated()), id: \.offset) { _, outcome in Text(outcome) }

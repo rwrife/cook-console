@@ -8,6 +8,73 @@ import GRDB
 /// the real trigger set, and the real domain validation — the same code the
 /// "Your data" screen calls.
 final class DataTransferServiceTests: XCTestCase {
+    func testRecipeOnlyPreviewReportsLiveReplacementAndArchiveMutations() throws {
+        for archive in [false, true] {
+            let (service, database, repository) = try makeService()
+            let recipe = try sampleRecipe()
+            let (session, timer) = try seedHistory(into: database, repository: repository, recipe: recipe)
+            try database.write { db in
+                try db.execute(sql: "UPDATE cook_sessions SET status = 'active', ended_at = NULL WHERE id = ?", arguments: [session.id.uuidString])
+                try db.execute(sql: "UPDATE cook_timers SET status = 'running', completed_at = NULL, deadline = ? WHERE id = ?", arguments: [Date().addingTimeInterval(600), timer.id.uuidString])
+            }
+            let timers = TimerRepository(database: database)
+            let notifications = ImportNotificationScheduler()
+            let engine = TimerEngine(repository: timers, notifications: notifications)
+            let paused = try engine.start(recipeID: recipe.id, stepID: recipe.steps[1].id,
+                                          cookSessionID: session.id, stepName: "Paused removed step", duration: 600)
+            _ = try engine.pause(timerID: paused.id)
+            _ = try GroceryRepository(database: database).addSelection(recipeID: recipe.id, servings: 2)
+            try database.write { db in
+                for id in [timer.id, paused.id] {
+                    try db.execute(sql: "INSERT INTO timer_completion_alerts (timer_id, completed_at) VALUES (?, ?)",
+                                   arguments: [id.uuidString, Date()])
+                }
+            }
+            var incoming = try service.exportDocument()
+            incoming.header.exportedAt = Date(timeIntervalSince1970: 1_000)
+            incoming.recipes[0].steps = [incoming.recipes[0].steps[0]]
+            incoming.recipes[0].deletedAt = archive ? Date(timeIntervalSince1970: 2_000) : nil
+            incoming.sessions = []
+            incoming.timers = []
+            incoming.timerEvents = []
+            incoming.grocerySelections = nil
+            incoming.groceryManualItems = nil
+            func snapshot() throws -> [[String]] {
+                try database.read { db in
+                    try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+                        .map { table in try Row.fetchAll(db, sql: "SELECT * FROM \(table) ORDER BY rowid").map(\.description) }
+                }
+            }
+            let before = try snapshot()
+            let preview = try service.preview(incoming)
+            XCTAssertEqual(preview.outcome.existingLiveTimersStopped, 2)
+            XCTAssertEqual(preview.outcome.completionAlertsRemoved, 2)
+            XCTAssertEqual(preview.outcome.activeSessionsClamped, 1)
+            XCTAssertEqual(preview.outcome.activeSessionsAbandoned, archive ? 1 : 0)
+            XCTAssertEqual(preview.outcome.grocerySelectionsRemoved, archive ? 1 : 0)
+            XCTAssertTrue(preview.outcome.summaryText.contains("2 existing live timers stopped"))
+            XCTAssertTrue(preview.outcome.summaryText.contains("2 completion alerts removed"))
+            XCTAssertTrue(preview.outcome.summaryText.contains("1 active cook sessions clamped"))
+            if archive {
+                XCTAssertTrue(preview.outcome.summaryText.contains("1 active cook sessions abandoned"))
+                XCTAssertTrue(preview.outcome.summaryText.contains("1 grocery selections removed"))
+            }
+            XCTAssertEqual(try snapshot(), before) // Discarding the preview is cancellation.
+            XCTAssertEqual(try service.apply(preview), preview.outcome)
+            XCTAssertEqual(try timers.fetchTimer(id: timer.id)?.status, .cancelled)
+            XCTAssertEqual(try timers.fetchTimer(id: paused.id)?.status, .cancelled)
+            XCTAssertEqual(try repository.fetchCookSession(id: session.id)?.currentStepIndex, 0)
+            XCTAssertEqual(try repository.fetchCookSession(id: session.id)?.status, archive ? .abandoned : .active)
+            XCTAssertTrue(try engine.pendingCompletions().isEmpty)
+            // AppStore.refreshAfterRecovery invokes this same synchronization.
+            notifications.removed.removeAll()
+            try engine.synchronizeNotifications()
+            XCTAssertEqual(Set(notifications.removed), Set([timer.id, paused.id]))
+            XCTAssertTrue(notifications.scheduled.isEmpty)
+            XCTAssertEqual(try GroceryRepository(database: database).fetchSelections().count, archive ? 0 : 1)
+        }
+    }
+
     func testEditorRemovedStepTimersExportAsHistoryWithoutMutatingLiveStore() throws {
         for paused in [false, true] {
             let (service, database, repository) = try makeService()
@@ -786,4 +853,26 @@ final class DataTransferServiceTests: XCTestCase {
 /// Accessed synchronously across DatabaseQueue.write calls in one test.
 private final class ImportFailureSwitch: @unchecked Sendable {
     var enabled = false
+}
+
+
+private final class ImportNotificationScheduler: TimerNotificationScheduling, @unchecked Sendable {
+    var authorization: NotificationAuthorization { .allowed }
+    var scheduled: [TimerNotification] = []
+    var removed: [UUID] = []
+
+    func schedule(_ notification: TimerNotification,
+                  completion: @escaping @Sendable (TimerNotificationScheduleResult) -> Void) {
+        scheduled.append(notification)
+        completion(.success)
+    }
+
+    func removePending(timerID: UUID) {
+        scheduled.removeAll { $0.timerID == timerID }
+    }
+
+    func removeAll(timerID: UUID) {
+        removed.append(timerID)
+        scheduled.removeAll { $0.timerID == timerID }
+    }
 }
