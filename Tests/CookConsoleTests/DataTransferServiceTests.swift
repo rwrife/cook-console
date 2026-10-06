@@ -8,6 +8,65 @@ import GRDB
 /// the real trigger set, and the real domain validation — the same code the
 /// "Your data" screen calls.
 final class DataTransferServiceTests: XCTestCase {
+    func testEditorRemovedStepTimersExportAsHistoryWithoutMutatingLiveStore() throws {
+        for paused in [false, true] {
+            let (service, database, repository) = try makeService()
+            let recipe = try sampleRecipe()
+            let (_, historical) = try seedHistory(into: database, repository: repository, recipe: recipe)
+            let session = try repository.beginCook(for: recipe.id, at: Date(timeIntervalSince1970: 1_700_004_000))
+            let timers = TimerRepository(database: database)
+            let engine = TimerEngine(repository: timers, notifications: NoopTimerNotificationScheduler(),
+                                     now: { Date(timeIntervalSince1970: 1_700_004_000) })
+            let removed = try engine.start(recipeID: recipe.id, stepID: recipe.steps[1].id,
+                                           cookSessionID: session.id, stepName: "Original simmer snapshot", duration: 2700)
+            if paused { _ = try engine.pause(timerID: removed.id) }
+            let retained = try engine.start(recipeID: recipe.id, stepID: recipe.steps[0].id,
+                                            cookSessionID: session.id, stepName: "Retained step", duration: 600)
+            try database.write { db in
+                try db.execute(sql: "INSERT INTO timer_completion_alerts (timer_id, completed_at) VALUES (?, ?)",
+                               arguments: [historical.id.uuidString, historical.completedAt])
+            }
+            let edited = try Recipe(id: recipe.id, title: recipe.title, servings: recipe.servings,
+                                    ingredients: recipe.ingredients, steps: [recipe.steps[0]],
+                                    tags: recipe.tags, isFavorite: recipe.isFavorite)
+            try repository.update(edited) // The ordinary editor path, preserving #4's live snapshot policy.
+            let before = try database.read { db in
+                try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+                    .map { table in try Row.fetchAll(db, sql: "SELECT * FROM \(table) ORDER BY rowid").map(\.description) }
+            }
+            let live = try XCTUnwrap(timers.fetchTimer(id: removed.id))
+            XCTAssertEqual(live.status, paused ? .paused : .running)
+            let document = try service.exportDocument()
+            let exported = try XCTUnwrap(document.timers.first { $0.id == removed.id })
+            XCTAssertEqual(exported.status, "cancelled")
+            XCTAssertEqual(exported.completedAt, document.header.exportedAt)
+            XCTAssertNil(exported.deadline)
+            XCTAssertNil(exported.remainingWhenPaused)
+            XCTAssertEqual(exported.stepID, removed.stepID)
+            XCTAssertEqual(exported.stepName, removed.stepName)
+            XCTAssertEqual(document.timers.first { $0.id == retained.id }?.status, "running")
+            XCTAssertEqual(document.timers.first { $0.id == historical.id }?.status, "completed")
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+            defer { try? FileManager.default.removeItem(at: url) }
+            try service.writeJSONBackup(to: url)
+            XCTAssertEqual(try service.validateDocument(at: url), document)
+            let decoded = try service.decodedDocument(from: service.encodedData(for: document))
+            let (clean, recoveredDB, recoveredRecipes) = try makeService()
+            let preview = try clean.preview(decoded)
+            XCTAssertTrue(try recoveredRecipes.fetchAll().isEmpty)
+            _ = try clean.apply(preview)
+            XCTAssertEqual(try clean.exportDocument(), document)
+            XCTAssertEqual(try TimerRepository(database: recoveredDB).fetchTimer(id: removed.id)?.status, .cancelled)
+            XCTAssertEqual(try recoveredDB.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM timer_completion_alerts") }, 0)
+            XCTAssertEqual(try timers.fetchTimer(id: removed.id), live)
+            let after = try database.read { db in
+                try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+                    .map { table in try Row.fetchAll(db, sql: "SELECT * FROM \(table) ORDER BY rowid").map(\.description) }
+            }
+            XCTAssertEqual(after, before) // Includes event history, generations, metadata, and pending alerts.
+        }
+    }
+
     func testReplacementWithRemovedHistoricalStepRoundTripsIntoCleanStore() throws {
         let (service, database, repository) = try makeService()
         let recipe = try sampleRecipe()

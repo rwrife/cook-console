@@ -225,18 +225,37 @@ final class DataTransferService: @unchecked Sendable {
 
     // MARK: - Export
 
-    /// Snapshot of the whole library into a `BackupDocument`.
+    /// Snapshot of the whole library into a `BackupDocument`. Removed-step live
+    /// timers export as stopped history; the original database is never changed.
     func exportDocument() throws -> BackupDocument {
         let snapshot = try database.read { db in try Self.readSnapshot(db) }
+        let exportedAt = now()
+        let currentSteps = Dictionary(uniqueKeysWithValues: snapshot.recipes.map {
+            ($0.id, Set($0.steps.map(\.id)))
+        })
+        let timers = snapshot.timers.map { stored in
+            var timer = stored
+            // #4 keeps live timer UUID/text snapshots after ordinary editor edits.
+            // Recovery cannot restart removed steps under v12's live identity rules,
+            // so normalize only the exported value, preserving IDs and event history.
+            if (timer.status == "running" || timer.status == "paused"),
+               let steps = currentSteps[timer.recipeID], !steps.contains(timer.stepID) {
+                timer.status = "cancelled"
+                timer.completedAt = timer.completedAt ?? exportedAt
+                timer.deadline = nil
+                timer.remainingWhenPaused = nil
+            }
+            return timer
+        }
         return BackupDocument(
             header: BackupDocument.Header(
                 schemaVersion: BackupDocument.currentSchemaVersion,
-                exportedAt: now(),
+                exportedAt: exportedAt,
                 appVersion: appVersion
             ),
             recipes: snapshot.recipes,
             sessions: snapshot.sessions,
-            timers: snapshot.timers,
+            timers: timers,
             timerEvents: snapshot.timerEvents,
             grocerySelections: snapshot.grocerySelections,
             groceryManualItems: snapshot.groceryManualItems

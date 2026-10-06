@@ -42,7 +42,7 @@ struct YourDataView: View {
                     Label("Save JSON backup…", systemImage: "doc.badge.arrow.up")
                 }
                 .accessibilityIdentifier("Export JSON backup")
-                Text("Includes export date/app version, all recipes (including deleted recipes and deletion dates), ingredients, steps, tags, favorites, scaling notes, cook sessions, timer logs/events, grocery selections and checked keys, and manual grocery items. Excludes pantry items/staples, review provenance and kitchen-test observations, settings, notification permission/schedules and pending completion alerts, and this backup-save timestamp. Those excluded records cannot be recovered from this file. Older JSON files may also omit groceries and deletion dates.")
+                Text("Includes export date/app version, all recipes (including deleted recipes and deletion dates), ingredients, steps, tags, favorites, scaling notes, cook sessions, timer logs/events, grocery selections and checked keys, and manual grocery items. Excludes pantry items/staples, review provenance and kitchen-test observations, settings, notification permission/schedules and pending completion alerts, and this backup-save timestamp. Those excluded records cannot be recovered from this file. Older JSON files may also omit groceries and deletion dates. Timers for removed recipe steps are exported as stopped history and will not restart on recovery.")
                     .font(.footnote)
                     .accessibilityIdentifier("Backup contents")
                 Text("Only a successful system save confirms a backup. Canceling or preparing a file does not. Keep a copy outside the app; CSV is a history report, not a restorable backup.")
@@ -74,7 +74,7 @@ struct YourDataView: View {
                     }
                     .accessibilityIdentifier("Preview recovery fixture")
                 }
-                Text("Preview before applying. Matching recipe IDs: backup content wins; identical recipes stay unchanged. Existing history and grocery IDs stay unchanged; new IDs are added. Items missing from a file are kept. Deleted recipes remain deleted even when an older backup has no deletion dates; their active cooks/timers stop and grocery selections are excluded. Imported active timers for live recipes use their saved deadlines. Pantry and reviews remain unchanged. Cancel changes nothing. If your data changes after preview, choose the file again to re-preview.")
+                Text("Preview before applying. Matching recipe IDs: backup content wins; identical recipes stay unchanged. Existing history and grocery IDs stay unchanged; new IDs are added. Items missing from a file are kept. Deleted recipes remain deleted even when an older backup has no deletion dates; their active cooks/timers stop and grocery selections are excluded. Imported active timers for live recipes use their saved deadlines. Timers for removed recipe steps are exported as stopped history and will not restart on recovery. Pantry and reviews remain unchanged. Cancel changes nothing. If your data changes after preview, choose the file again to re-preview.")
                     .font(.footnote)
                     .accessibilityIdentifier("Import conflict policy")
                 if let summary = store.importSummary {
@@ -136,7 +136,7 @@ struct YourDataView: View {
             if let preview {
                 NavigationStack {
                     List {
-                        Text("Backup content replaces matching recipes; existing history and grocery IDs are kept. Deleted recipes remain archived; their active cooks/timers stop and grocery selections are excluded. Imported active timers for live recipes use saved deadlines. Items absent from the file, pantry, and reviews are kept.")
+                        Text("Backup content replaces matching recipes; existing history and grocery IDs are kept. Deleted recipes remain archived; their active cooks/timers stop and grocery selections are excluded. Imported active timers for live recipes use saved deadlines. Timers for removed recipe steps are exported as stopped history and will not restart on recovery. Items absent from the file, pantry, and reviews are kept.")
                             .accessibilityIdentifier("Preview conflict policy")
                         Text(preview.outcome.summaryText).accessibilityIdentifier("Import preview summary")
                         ForEach(Array(preview.recipeOutcomes.enumerated()), id: \.offset) { _, outcome in Text(outcome) }
