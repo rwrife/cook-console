@@ -40,7 +40,7 @@ final class RecipeRepository {
         try database.read { db in
             let identifiers = try String.fetchAll(
                 db,
-                sql: "SELECT id FROM recipes ORDER BY title COLLATE NOCASE, id"
+                sql: "SELECT id FROM recipes WHERE deleted_at IS NULL ORDER BY title COLLATE NOCASE, id"
             )
             return try identifiers.map { identifier in
                 guard let id = UUID(uuidString: identifier),
@@ -66,6 +66,7 @@ final class RecipeRepository {
                     LEFT JOIN cook_sessions
                       ON cook_sessions.recipe_id = recipes.id
                      AND cook_sessions.status = 'completed'
+                    WHERE recipes.deleted_at IS NULL
                     GROUP BY recipes.id
                     ORDER BY recipes.is_favorite DESC,
                              MAX(cook_sessions.ended_at) DESC,
@@ -95,6 +96,7 @@ final class RecipeRepository {
 
     func beginCook(for recipeID: UUID, at date: Date = Date()) throws -> CookSession {
         try database.write { db in
+            guard try fetchRecipe(id: recipeID, from: db) != nil else { throw RecipeRepositoryError.notFound(recipeID) }
             if let active = try fetchActiveCookSession(for: recipeID, from: db) {
                 return active
             }
@@ -225,11 +227,45 @@ final class RecipeRepository {
         }
     }
 
+    /// Retained indefinitely until explicit purge. Children and history survive.
     @discardableResult
     func delete(id: UUID) throws -> Bool {
         try database.write { db in
-            try db.execute(sql: "DELETE FROM recipes WHERE id = ?", arguments: [id.uuidString])
-            return db.changesCount == 1
+            let date = Date()
+            try db.execute(sql: "UPDATE recipes SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL", arguments: [date, id.uuidString])
+            let changed = db.changesCount == 1
+            guard changed else { return false }
+            try db.execute(sql: "UPDATE cook_timers SET status = 'cancelled', deadline = NULL, remaining_when_paused = NULL, completed_at = ?, schedule_generation = schedule_generation + 1 WHERE recipe_id = ? AND status IN ('running', 'paused')", arguments: [date, id.uuidString])
+            try db.execute(sql: "DELETE FROM timer_completion_alerts WHERE timer_id IN (SELECT id FROM cook_timers WHERE recipe_id = ?)", arguments: [id.uuidString])
+            try db.execute(sql: "UPDATE cook_sessions SET status = 'abandoned', ended_at = ? WHERE recipe_id = ? AND status = 'active'", arguments: [date, id.uuidString])
+            // Shopping selections are removed deliberately; restore does not re-add groceries.
+            try db.execute(sql: "DELETE FROM grocery_selections WHERE recipe_id = ?", arguments: [id.uuidString])
+            return true
+        }
+    }
+
+    func fetchArchived() throws -> [Recipe] {
+        try database.read { db in
+            let identifiers = try String.fetchAll(db, sql: "SELECT id FROM recipes WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC, title COLLATE NOCASE, id")
+            return try identifiers.map { identifier in
+                guard let id = UUID(uuidString: identifier),
+                      let recipe = try fetchRecipe(id: id, from: db, includeDeleted: true) else {
+                    throw RecipeRepositoryError.corruptData("Invalid archived recipe ID \(identifier).")
+                }
+                return recipe
+            }
+        }
+    }
+
+    func restore(id: UUID) throws {
+        try database.write { db in
+            try db.execute(sql: "UPDATE recipes SET deleted_at = NULL WHERE id = ?", arguments: [id.uuidString])
+        }
+    }
+
+    func purge(id: UUID) throws {
+        try database.write { db in
+            try db.execute(sql: "DELETE FROM recipes WHERE id = ? AND deleted_at IS NOT NULL", arguments: [id.uuidString])
         }
     }
 
@@ -303,15 +339,15 @@ final class RecipeRepository {
         try db.execute(sql: "DELETE FROM recipe_tags WHERE recipe_id = ?", arguments: arguments)
     }
 
-    private func fetchRecipe(id: UUID, from db: Database) throws -> Recipe? {
+    private func fetchRecipe(id: UUID, from db: Database, includeDeleted: Bool = false) throws -> Recipe? {
         guard let recipeRow = try Row.fetchOne(
             db,
             sql: """
                 SELECT id, title, servings, is_favorite,
                        pan_size_guidance, batch_size_guidance, cooking_time_guidance
-                FROM recipes WHERE id = ?
+                FROM recipes WHERE id = ? AND (deleted_at IS NULL OR ?)
                 """,
-            arguments: [id.uuidString]
+            arguments: [id.uuidString, includeDeleted]
         ) else { return nil }
 
         let ingredientRows = try Row.fetchAll(

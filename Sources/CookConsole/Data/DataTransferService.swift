@@ -4,12 +4,14 @@ import GRDB
 /// Errors raised while validating an import document, with the path of the
 /// offending item so the UI can report per-item failures.
 enum DataTransferError: Error, Equatable, LocalizedError, Sendable {
+    case stalePreview
     case unsupportedSchemaVersion(Int)
     case malformed(String)
     case invalidItem(path: String, reason: String)
 
     var errorDescription: String? {
         switch self {
+        case .stalePreview: return "Your data changed after preview. Preview the backup again before applying."
         case let .unsupportedSchemaVersion(version):
             return "This backup uses schema version \(version); this build understands version 1."
         case let .malformed(reason):
@@ -20,7 +22,8 @@ enum DataTransferError: Error, Equatable, LocalizedError, Sendable {
     }
 }
 
-/// Versioned JSON backup document: recipes + cook sessions + timer logs.
+/// Versioned JSON: active/deleted recipes, cook history, timer logs, and optional groceries.
+/// Pantry, review/physical-test records, settings, and notification schedules are excluded.
 ///
 /// The schema is explicit and versioned (acceptance criteria for #6): new
 /// fields must be optional and additive, and `schemaVersion` is the only
@@ -79,6 +82,7 @@ struct BackupDocument: Codable, Equatable, Sendable {
         var panSizeGuidance: String? = nil
         var batchSizeGuidance: String? = nil
         var cookingTimeGuidance: String? = nil
+        var deletedAt: Date? = nil
     }
 
     struct StoredSession: Codable, Equatable, Sendable {
@@ -127,6 +131,15 @@ struct BackupDocument: Codable, Equatable, Sendable {
 
 /// Summary of one applied import, shaped for a user-visible conflict report.
 struct JSONImportOutcome: Equatable, Sendable {
+    /// Existing running/paused rows that become cancelled (not imported timer logs).
+    var existingLiveTimersStopped = 0
+    /// Actual deleted alert/selection rows, including archive cleanup.
+    var completionAlertsRemoved = 0
+    var grocerySelectionsRemoved = 0
+    /// Active rows changed by each operation; a session can be both clamped and abandoned.
+    var activeSessionsClamped = 0
+    var activeSessionsAbandoned = 0
+    var recipesArchived = 0
     var recipesAdded = 0
     var recipesSkipped = 0
     var recipesReplaced = 0
@@ -135,6 +148,7 @@ struct JSONImportOutcome: Equatable, Sendable {
     var timersAdded = 0
     var timersSkipped = 0
     var grocerySelectionsAdded = 0
+    var grocerySelectionsExcluded = 0
     var grocerySelectionsSkipped = 0
     var groceryManualItemsAdded = 0
     var groceryManualItemsSkipped = 0
@@ -144,16 +158,31 @@ struct JSONImportOutcome: Equatable, Sendable {
         var parts: [String] = ["\(recipesAdded) recipes added"]
         if recipesSkipped > 0 { parts.append("\(recipesSkipped) unchanged duplicates kept") }
         if recipesReplaced > 0 { parts.append("\(recipesReplaced) recipes replaced") }
+        if recipesArchived > 0 { parts.append("\(recipesArchived) imported recipes retained in Deleted Recipes") }
         parts.append("\(sessionsAdded) cook sessions added")
         if sessionsSkipped > 0 { parts.append("\(sessionsSkipped) sessions already present") }
         parts.append("\(timersAdded) timer logs added")
         if timersSkipped > 0 { parts.append("\(timersSkipped) timer logs already present") }
+        if grocerySelectionsExcluded > 0 { parts.append("\(grocerySelectionsExcluded) grocery selections excluded for deleted recipes") }
         if grocerySelectionsAdded > 0 { parts.append("\(grocerySelectionsAdded) grocery selections added") }
         if grocerySelectionsSkipped > 0 { parts.append("\(grocerySelectionsSkipped) grocery selections already present") }
         if groceryManualItemsAdded > 0 { parts.append("\(groceryManualItemsAdded) grocery items added") }
         if groceryManualItemsSkipped > 0 { parts.append("\(groceryManualItemsSkipped) grocery items already present") }
+        if existingLiveTimersStopped > 0 { parts.append("\(existingLiveTimersStopped) existing live timers stopped") }
+        if completionAlertsRemoved > 0 { parts.append("\(completionAlertsRemoved) completion alerts removed") }
+        if activeSessionsClamped > 0 { parts.append("\(activeSessionsClamped) active cook sessions clamped") }
+        if activeSessionsAbandoned > 0 { parts.append("\(activeSessionsAbandoned) active cook sessions abandoned") }
+        if grocerySelectionsRemoved > 0 { parts.append("\(grocerySelectionsRemoved) grocery selections removed") }
         return parts.joined(separator: ", ") + "."
     }
+}
+
+/// Immutable validated document plus the exact database state used for its dry run.
+struct JSONImportPreview: Sendable {
+    fileprivate let document: BackupDocument
+    fileprivate let fingerprint: String
+    let outcome: JSONImportOutcome
+    let recipeOutcomes: [String]
 }
 
 /// User-owned data transport (issue #6): JSON backup export/restore and a
@@ -193,20 +222,53 @@ final class DataTransferService: @unchecked Sendable {
         return formatter
     }
 
+    func lastConfirmedBackup() throws -> Date? {
+        try database.read { db in
+            let value = try String.fetchOne(db, sql: "SELECT value FROM app_metadata WHERE key = 'last_confirmed_backup'")
+            return value.flatMap { Double($0) }.map { Date(timeIntervalSince1970: $0) }
+        }
+    }
+
+    /// Called only after fileExporter returns a successful destination URL.
+    func confirmBackupSaved() throws {
+        try database.write { db in
+            try db.execute(sql: "INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('last_confirmed_backup', ?)", arguments: [String(now().timeIntervalSince1970)])
+        }
+    }
+
     // MARK: - Export
 
-    /// Snapshot of the whole library into a `BackupDocument`.
+    /// Snapshot of the whole library into a `BackupDocument`. Removed-step live
+    /// timers export as stopped history; the original database is never changed.
     func exportDocument() throws -> BackupDocument {
         let snapshot = try database.read { db in try Self.readSnapshot(db) }
+        let exportedAt = now()
+        let currentSteps = Dictionary(uniqueKeysWithValues: snapshot.recipes.map {
+            ($0.id, Set($0.steps.map(\.id)))
+        })
+        let timers = snapshot.timers.map { stored in
+            var timer = stored
+            // #4 keeps live timer UUID/text snapshots after ordinary editor edits.
+            // Recovery cannot restart removed steps under v12's live identity rules,
+            // so normalize only the exported value, preserving IDs and event history.
+            if (timer.status == "running" || timer.status == "paused"),
+               let steps = currentSteps[timer.recipeID], !steps.contains(timer.stepID) {
+                timer.status = "cancelled"
+                timer.completedAt = timer.completedAt ?? exportedAt
+                timer.deadline = nil
+                timer.remainingWhenPaused = nil
+            }
+            return timer
+        }
         return BackupDocument(
             header: BackupDocument.Header(
                 schemaVersion: BackupDocument.currentSchemaVersion,
-                exportedAt: now(),
+                exportedAt: exportedAt,
                 appVersion: appVersion
             ),
             recipes: snapshot.recipes,
             sessions: snapshot.sessions,
-            timers: snapshot.timers,
+            timers: timers,
             timerEvents: snapshot.timerEvents,
             grocerySelections: snapshot.grocerySelections,
             groceryManualItems: snapshot.groceryManualItems
@@ -312,8 +374,71 @@ final class DataTransferService: @unchecked Sendable {
     ///   append-only; an existing row is never rewritten).
     @discardableResult
     func applyValidated(_ document: BackupDocument) throws -> JSONImportOutcome {
-        var outcome = JSONImportOutcome()
+        try Self.validateSemantics(of: document)
+        guard document.header.schemaVersion == BackupDocument.currentSchemaVersion else {
+            throw DataTransferError.unsupportedSchemaVersion(document.header.schemaVersion)
+        }
+        return try database.write { db in try Self.merge(document, in: db) }
+    }
+
+    func preview(_ document: BackupDocument) throws -> JSONImportPreview {
+        try Self.validateSemantics(of: document)
+        guard document.header.schemaVersion == BackupDocument.currentSchemaVersion else {
+            throw DataTransferError.unsupportedSchemaVersion(document.header.schemaVersion)
+        }
+        return try database.write { db in
+            let existing = try Self.readSnapshot(db).recipes
+            let details = document.recipes.map { incoming in
+                let previous = existing.first { $0.id == incoming.id }
+                let sameContent = try? Self.decodedRecipe(previous ?? incoming) == Self.decodedRecipe(incoming)
+                let action = previous == nil ? "Add" : (sameContent == true ? "Keep content" : "Replace content")
+                let archived = incoming.deletedAt != nil || previous?.deletedAt != nil
+                return "\(action): \(incoming.title) — \(archived ? "deleted archive" : "library")"
+            }
+            var outcome = JSONImportOutcome()
+            try db.inSavepoint {
+                outcome = try Self.merge(document, in: db)
+                return .rollback
+            }
+            return JSONImportPreview(document: document, fingerprint: try Self.fingerprint(db), outcome: outcome, recipeOutcomes: details)
+        }
+    }
+
+    func apply(_ preview: JSONImportPreview) throws -> JSONImportOutcome {
         try database.write { db in
+            guard try Self.fingerprint(db) == preview.fingerprint else { throw DataTransferError.stalePreview }
+            return try Self.merge(preview.document, in: db)
+        }
+    }
+
+    private static func fingerprint(_ db: Database) throws -> String {
+        // All user tables, including pantry/reviews and metadata omitted from the backup.
+        let tables = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        let counters = try Row.fetchOne(db, sql: "SELECT total_changes() AS changes, (SELECT data_version FROM pragma_data_version) AS data_version, (SELECT schema_version FROM pragma_schema_version) AS schema_version")
+        let revision = counters?.description ?? ""
+        return revision + (try tables.map { table in
+            let quoted = "\"" + table.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+            let rows = try Row.fetchAll(db, sql: "SELECT * FROM \(quoted) ORDER BY rowid")
+            return table + rows.map { row in
+                row.map { column, value in
+                    let encoded: String
+                    switch value.storage {
+                    case .null: encoded = "null"
+                    case .int64(let number): encoded = "int:\(number)"
+                    case .double(let number): encoded = "double:\(number.bitPattern)"
+                    case .string(let string): encoded = "text:" + Data(string.utf8).base64EncodedString()
+                    case .blob(let bytes): encoded = "blob:" + bytes.base64EncodedString()
+                    }
+                    return column + ":" + encoded
+                }.joined(separator: "|")
+            }.joined(separator: "\n")
+        }.joined(separator: "\n"))
+    }
+
+    private static func merge(_ document: BackupDocument, in db: Database) throws -> JSONImportOutcome {
+        var outcome = JSONImportOutcome()
+        let existingLiveTimerIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM cook_timers WHERE status IN ('running', 'paused')"))
+        do {
             let existingRecipeIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM recipes"))
             let existingSessionIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM cook_sessions"))
             let existingTimerIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM cook_timers"))
@@ -366,7 +491,7 @@ final class DataTransferService: @unchecked Sendable {
                     if try Self.storedRecipe(db, id: recipe.id) == recipe {
                         outcome.recipesSkipped += 1
                     } else {
-                        try Self.replaceRecipe(db, with: recipe)
+                        try Self.replaceRecipe(db, with: recipe, outcome: &outcome)
                         outcome.recipesReplaced += 1
                     }
                 } else {
@@ -375,30 +500,10 @@ final class DataTransferService: @unchecked Sendable {
                 }
             }
 
-            // A backup restores history (timers whose sessions ended in the
-            // past), and the live-editing `cook_timers_valid_identity_insert`
-            // trigger requires the session to be 'active' at insert time.
-            // Rather than dropping triggers, the import satisfies them the
-            // way the app itself does: every session a restored timer
-            // touches is flipped to 'active' for the duration of the insert
-            // and restored to its true final status afterwards. Column
-            // shape rules (running=deadline, paused=remaining, ended=
-            // completed_at) are already honored by the stored columns.
-            var sessionFinalStatus: [String: String] = [:]
-            func ensureSessionActiveForTimerInsert(_ sessionKey: String) throws {
-                guard sessionFinalStatus[sessionKey] == nil else { return }
-                let status: String? = try String.fetchOne(
-                    db,
-                    sql: "SELECT status FROM cook_sessions WHERE id = ?",
-                    arguments: [sessionKey]
-                )
-                guard let status else { return } // FK check catches unknown sessions
-                sessionFinalStatus[sessionKey] = status
-                if status != CookSessionStatus.active.rawValue {
-                    try db.execute(
-                        sql: "UPDATE cook_sessions SET status = ? WHERE id = ?",
-                        arguments: [CookSessionStatus.active.rawValue, sessionKey]
-                    )
+            // Incoming deletion metadata may archive, but legacy/live copies never resurrect.
+            for stored in document.recipes {
+                if let deletedAt = stored.deletedAt {
+                    try db.execute(sql: "UPDATE recipes SET deleted_at = ? WHERE id = ?", arguments: [deletedAt, stored.id.uuidString])
                 }
             }
 
@@ -432,10 +537,9 @@ final class DataTransferService: @unchecked Sendable {
                     outcome.timersSkipped += 1
                     continue
                 }
-                // DB-aware step existence: when the timer's recipe lives in
-                // the store (not the file), validateSemantics could not see
-                // its steps. The identity trigger would abort the whole
-                // transaction otherwise — report the item instead.
+                // Live timers must resolve against the merged current steps.
+                // Ended timers retain a historical UUID and stepName snapshot;
+                // the insert trigger still enforces recipe/session identity.
                 let stepExists = (try Bool.fetchOne(
                     db,
                     sql: """
@@ -446,13 +550,12 @@ final class DataTransferService: @unchecked Sendable {
                         """,
                     arguments: [stored.recipeID.uuidString, stored.stepID.uuidString]
                 )) ?? false
-                guard stepExists else {
+                guard stepExists || ["completed", "cancelled"].contains(stored.status) else {
                     throw DataTransferError.invalidItem(
                         path: "timer \(key)",
                         reason: "references step \(stored.stepID.uuidString), which does not exist in the recipe it names."
                     )
                 }
-                try ensureSessionActiveForTimerInsert(stored.cookSessionID.uuidString)
                 try db.execute(
                     sql: """
                         INSERT INTO cook_timers
@@ -477,17 +580,6 @@ final class DataTransferService: @unchecked Sendable {
                     ]
                 )
                 outcome.timersAdded += 1
-            }
-
-            // Restore the true final status of every session that was
-            // temporarily reactivated to satisfy the timer-insert trigger.
-            for (sessionKey, finalStatus) in sessionFinalStatus {
-                if finalStatus != CookSessionStatus.active.rawValue {
-                    try db.execute(
-                        sql: "UPDATE cook_sessions SET status = ? WHERE id = ?",
-                        arguments: [finalStatus, sessionKey]
-                    )
-                }
             }
 
             for stored in document.timerEvents {
@@ -517,6 +609,11 @@ final class DataTransferService: @unchecked Sendable {
             // the store), so the FK can only fail on corrupt files.
             for stored in document.grocerySelections ?? [] {
                 let key = stored.id.uuidString
+                let deletedAt: Date? = try Date.fetchOne(db, sql: "SELECT deleted_at FROM recipes WHERE id = ?", arguments: [stored.recipeID.uuidString])
+                if deletedAt != nil {
+                    outcome.grocerySelectionsExcluded += 1
+                    continue
+                }
                 guard !existingGrocerySelectionIDs.contains(key) else {
                     outcome.grocerySelectionsSkipped += 1
                     continue
@@ -569,6 +666,20 @@ final class DataTransferService: @unchecked Sendable {
                 )
                 outcome.groceryManualItemsAdded += 1
             }
+        }
+        // Archives never restart a cook or contribute shopping suggestions.
+        try db.execute(sql: "UPDATE cook_timers SET status = 'cancelled', deadline = NULL, remaining_when_paused = NULL, completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP), schedule_generation = schedule_generation + 1 WHERE recipe_id IN (SELECT id FROM recipes WHERE deleted_at IS NOT NULL) AND status IN ('running', 'paused')")
+        try db.execute(sql: "DELETE FROM timer_completion_alerts WHERE timer_id IN (SELECT id FROM cook_timers WHERE recipe_id IN (SELECT id FROM recipes WHERE deleted_at IS NOT NULL))")
+        outcome.completionAlertsRemoved += db.changesCount
+        try db.execute(sql: "UPDATE cook_sessions SET status = 'abandoned', ended_at = COALESCE(ended_at, CURRENT_TIMESTAMP) WHERE recipe_id IN (SELECT id FROM recipes WHERE deleted_at IS NOT NULL) AND status = 'active'")
+        outcome.activeSessionsAbandoned += db.changesCount
+        try db.execute(sql: "DELETE FROM grocery_selections WHERE recipe_id IN (SELECT id FROM recipes WHERE deleted_at IS NOT NULL)")
+        outcome.grocerySelectionsRemoved += db.changesCount
+        let cancelledTimerIDs = try Set(String.fetchAll(db, sql: "SELECT id FROM cook_timers WHERE status = 'cancelled'"))
+        outcome.existingLiveTimersStopped = existingLiveTimerIDs.intersection(cancelledTimerIDs).count
+        for stored in document.recipes {
+            let deletedAt: Date? = try Date.fetchOne(db, sql: "SELECT deleted_at FROM recipes WHERE id = ?", arguments: [stored.id.uuidString])
+            if deletedAt != nil { outcome.recipesArchived += 1 }
         }
         return outcome
     }
@@ -653,14 +764,15 @@ final class DataTransferService: @unchecked Sendable {
             guard recipeIDs.contains(stored.recipeID) else {
                 throw DataTransferError.invalidItem(
                     path: path,
-                    reason: "references unknown recipe \(stored.recipeID.uuidString)."
+                    reason: "references recipe \(stored.recipeID.uuidString), which is not in the file."
                 )
             }
             guard CookSessionStatus(rawValue: stored.status) != nil else {
                 throw DataTransferError.invalidItem(path: path, reason: "unknown status '\(stored.status)'.")
             }
             let stepCount = recipeStepCounts[stored.recipeID] ?? 0
-            guard stepCount > 0, stored.currentStepIndex >= 0, stored.currentStepIndex < stepCount else {
+            guard stepCount > 0, stored.currentStepIndex >= 0,
+                  stored.status != "active" || stored.currentStepIndex < stepCount else {
                 throw DataTransferError.invalidItem(
                     path: path,
                     reason: "current step \(stored.currentStepIndex) is outside the recipe."
@@ -674,20 +786,20 @@ final class DataTransferService: @unchecked Sendable {
             guard timerIDs.insert(stored.id).inserted else {
                 throw DataTransferError.invalidItem(path: path, reason: "duplicate timer ID in file.")
             }
-            guard let steps = recipeStepIDs[stored.recipeID], steps.contains(stored.stepID) else {
-                throw DataTransferError.invalidItem(
-                    path: path,
-                    reason: "references unknown step \(stored.stepID.uuidString) of recipe \(stored.recipeID.uuidString)."
-                )
-            }
-            guard sessionIDs.contains(stored.cookSessionID) else {
-                throw DataTransferError.invalidItem(
-                    path: path,
-                    reason: "references unknown cook session \(stored.cookSessionID.uuidString)."
-                )
-            }
             guard let status = CookTimerStatus(rawValue: stored.status) else {
                 throw DataTransferError.invalidItem(path: path, reason: "unknown status '\(stored.status)'.")
+            }
+            guard let session = document.sessions.first(where: { $0.id == stored.cookSessionID }),
+                  session.recipeID == stored.recipeID,
+                  let steps = recipeStepIDs[stored.recipeID] else {
+                throw DataTransferError.invalidItem(path: path, reason: "timer recipe/session identity does not match the file.")
+            }
+            // Ended rows use their immutable stepName snapshot and historical
+            // UUID. Live rows must refer to a current step in an active cook.
+            if status == .running || status == .paused {
+                guard steps.contains(stored.stepID), session.status == "active" else {
+                    throw DataTransferError.invalidItem(path: path, reason: "live timer references an unknown current step or inactive session.")
+                }
             }
             guard stored.originalDuration.isFinite, stored.originalDuration > 0 else {
                 throw DataTransferError.invalidItem(path: path, reason: "duration must be finite and > 0.")
@@ -817,7 +929,7 @@ final class DataTransferService: @unchecked Sendable {
             db,
             sql: """
                 SELECT id, title, servings, is_favorite,
-                       pan_size_guidance, batch_size_guidance, cooking_time_guidance
+                       pan_size_guidance, batch_size_guidance, cooking_time_guidance, deleted_at
                 FROM recipes ORDER BY rowid
                 """
         )
@@ -873,7 +985,8 @@ final class DataTransferService: @unchecked Sendable {
                 },
                 panSizeGuidance: row["pan_size_guidance"],
                 batchSizeGuidance: row["batch_size_guidance"],
-                cookingTimeGuidance: row["cooking_time_guidance"]
+                cookingTimeGuidance: row["cooking_time_guidance"],
+                deletedAt: row["deleted_at"]
             ))
         }
 
@@ -1105,7 +1218,7 @@ final class DataTransferService: @unchecked Sendable {
     /// Replace-in-place: mirrors `RecipeRepository.update` semantics but
     /// stays inside the import transaction. Active cook sessions clamp their
     /// step the same way the regular update path does.
-    private static func replaceRecipe(_ db: Database, with recipe: Recipe) throws {
+    private static func replaceRecipe(_ db: Database, with recipe: Recipe, outcome: inout JSONImportOutcome) throws {
         try db.execute(
             sql: """
                 UPDATE recipes
@@ -1124,6 +1237,22 @@ final class DataTransferService: @unchecked Sendable {
         try db.execute(sql: "DELETE FROM recipe_steps WHERE recipe_id = ?", arguments: [recipe.id.uuidString])
         try db.execute(sql: "DELETE FROM recipe_tags WHERE recipe_id = ?", arguments: [recipe.id.uuidString])
         try insertRecipeChildren(db, recipe)
+        // Removed steps are historical snapshots, never live cook targets.
+        try db.execute(
+            sql: """
+                UPDATE cook_timers
+                SET status = 'cancelled', deadline = NULL, remaining_when_paused = NULL,
+                    completed_at = ?, schedule_generation = schedule_generation + 1
+                WHERE recipe_id = ? AND status IN ('running', 'paused')
+                  AND step_id NOT IN (SELECT id FROM recipe_steps WHERE recipe_id = ?)
+                """,
+            arguments: [Date(), recipe.id.uuidString, recipe.id.uuidString]
+        )
+        try db.execute(
+            sql: "DELETE FROM timer_completion_alerts WHERE timer_id IN (SELECT id FROM cook_timers WHERE recipe_id = ? AND step_id NOT IN (SELECT id FROM recipe_steps WHERE recipe_id = ?))",
+            arguments: [recipe.id.uuidString, recipe.id.uuidString]
+        )
+        outcome.completionAlertsRemoved += db.changesCount
         try db.execute(
             sql: """
                 UPDATE cook_sessions
@@ -1132,6 +1261,7 @@ final class DataTransferService: @unchecked Sendable {
                 """,
             arguments: [recipe.steps.count - 1, recipe.id.uuidString, recipe.steps.count]
         )
+        outcome.activeSessionsClamped += db.changesCount
     }
 
     private static func insertRecipeChildren(_ db: Database, _ recipe: Recipe) throws {

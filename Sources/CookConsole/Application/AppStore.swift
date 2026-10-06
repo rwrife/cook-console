@@ -79,6 +79,15 @@ final class AppStore: ObservableObject {
             let database = try RecipeDatabase.make(at: databaseURL.path)
             let recipeRepository = RecipeRepository(database: database)
             if ProcessInfo.processInfo.arguments.contains("-ui-testing-reset") {
+                if ProcessInfo.processInfo.arguments.contains("-ui-testing-recovery-fixture") {
+                    let fixture = try Recipe(
+                        id: UUID(uuidString: "22000000-0000-0000-0000-000000000001")!,
+                        title: "Recovery Fixture", servings: 1,
+                        ingredients: [Ingredient(name: "Water", amount: 1, unit: .cup)],
+                        steps: [RecipeStep(instruction: "Boil water.", timerDuration: 300)]
+                    )
+                    try recipeRepository.create(fixture)
+                }
                 if ProcessInfo.processInfo.arguments.contains("-ui-testing-short-timer-fixture") {
                     try recipeRepository.create(Recipe(
                         title: "Short Timer Fixture",
@@ -537,9 +546,85 @@ final class AppStore: ObservableObject {
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         let document = try dataTransfer.validateDocument(at: url)
         let outcome = try dataTransfer.applyValidated(document)
-        reloadLibrary()
+        refreshAfterRecovery()
         importSummary = outcome.summaryText
         return outcome
+    }
+
+    /// Local deterministic UI fixture exercises the production preview/apply path.
+    func recoveryFixturePreview() throws -> JSONImportPreview {
+        guard ProcessInfo.processInfo.arguments.contains("-ui-testing-reset"),
+              ProcessInfo.processInfo.arguments.contains("-ui-testing-recovery-fixture") else {
+            throw DataTransferError.malformed("Recovery fixture is unavailable.")
+        }
+        var document = try dataTransfer.exportDocument()
+        guard let index = document.recipes.firstIndex(where: { $0.id.uuidString == "22000000-0000-0000-0000-000000000001" }) else {
+            throw DataTransferError.malformed("Recovery fixture is missing.")
+        }
+        document.recipes[index].title = "Recovered Fixture"
+        // Serialize and validate like a picked file: preview is bound to that document.
+        let url = try Self.exportDirectory().appendingPathComponent("recovery-fixture.json")
+        try dataTransfer.encodedData(for: document).write(to: url, options: .atomic)
+        return try previewJSONBackup(from: url)
+    }
+
+    func previewJSONBackup(from url: URL) throws -> JSONImportPreview {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        return try dataTransfer.preview(dataTransfer.validateDocument(at: url))
+    }
+
+    func applyJSONPreview(_ preview: JSONImportPreview) throws {
+        let outcome = try dataTransfer.apply(preview)
+        refreshAfterRecovery()
+        importSummary = outcome.summaryText
+    }
+
+    var lastConfirmedBackup: Date? { try? dataTransfer.lastConfirmedBackup() }
+    func confirmBackupSaved() throws { try dataTransfer.confirmBackupSaved() }
+    func archivedRecipes() throws -> [Recipe] { try repository.fetchArchived() }
+    func restoreRecipe(id: UUID) throws {
+        try repository.restore(id: id)
+        reloadLibrary()
+    }
+    func purgeRecipe(id: UUID) throws { try repository.purge(id: id) }
+    func archiveRecipe(id: UUID) throws {
+        _ = try repository.delete(id: id)
+        refreshAfterRecovery()
+    }
+
+    private func refreshAfterRecovery() {
+        reloadLibrary()
+        reloadGrocery()
+        do { try timerEngine?.synchronizeNotifications() }
+        catch { errorMessage = "Data updated, but timer notification refresh failed: \(error.localizedDescription)" }
+        if let session = consoleSession {
+            do {
+                let persisted = try repository.fetchCookSession(id: session.id)
+                if let persisted, persisted.status == .active,
+                   try repository.fetch(id: persisted.recipeID) != nil {
+                    // Import may clamp the durable position without ending the cook.
+                    // The console must render the persisted session, not its old mirror.
+                    consoleSession = persisted
+                } else {
+                    consoleSession = nil
+                    consoleRecipeID = nil
+                    visibleCookSessionID = nil
+                    timers = []
+                }
+            } catch {
+                errorMessage = "Data updated, but cook session refresh failed: \(error.localizedDescription)"
+            }
+        }
+        if let presentedCompletionID,
+           let pending = try? timerEngine?.pendingCompletions(),
+           !pending.contains(where: { $0.id == presentedCompletionID }) {
+            self.presentedCompletionID = nil
+            completedTimerMessage = nil
+        }
+        reloadTimers()
+        refreshConsoleSnapshot()
+        scheduleExpiryWakeUp()
     }
 
     /// Last applied import summary, shown on the "Your data" screen.

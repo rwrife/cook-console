@@ -107,7 +107,7 @@ struct RecipeLibraryContent: View {
                 Button {
                     showingYourData = true
                 } label: {
-                    Label("Your data", systemImage: "shippingbox")
+                    Label("Backup & recovery", systemImage: "shippingbox")
                 }
                 .accessibilityIdentifier("Your data")
             }

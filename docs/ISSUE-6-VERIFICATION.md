@@ -1,3 +1,5 @@
+> Historical issue #6 verification. The current export/import UI and deletion behavior are documented in [issue #22 verification](ISSUE-22-VERIFICATION.md); JSON now uses confirmed Files saves and a mandatory preview.
+
 # Issue #6 verification — export/import + privacy audit
 
 ## What shipped

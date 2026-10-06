@@ -160,6 +160,37 @@ final class AppStoreQueryTests: XCTestCase {
         XCTAssertTrue(try engine.pendingCompletions().isEmpty)
     }
 
+    func testRecoveryReloadsClampedConsolePositionBeforeRecipeExpandsAgain() throws {
+        let database = try RecipeDatabase.makeInMemory()
+        let repository = RecipeRepository(database: database)
+        let steps = try ["Prepare.", "Simmer.", "Serve."].map { try RecipeStep(instruction: $0) }
+        let original = try Recipe(
+            title: "Recovery position", servings: 1,
+            ingredients: [try Ingredient(name: "Water", amount: 1, unit: .cup)], steps: steps
+        )
+        try repository.create(original)
+        let store = AppStore(repository: repository)
+        let session = try store.beginCook(for: original.id)
+        try store.updateCookPosition(sessionID: session.id, to: 2)
+        let transfer = DataTransferService(database: database)
+        var short = try transfer.exportDocument()
+        short.recipes[0].steps = [short.recipes[0].steps[0]]
+        short.sessions = []
+        try store.applyJSONPreview(transfer.preview(short))
+        XCTAssertEqual(try repository.fetchCookSession(id: session.id)?.currentStepIndex, 0)
+        var expanded = try transfer.exportDocument()
+        expanded.recipes[0].steps = steps.map {
+            BackupDocument.StoredStep(id: $0.id, instruction: $0.instruction, timerDuration: $0.timerDuration)
+        }
+        expanded.sessions = []
+        try store.applyJSONPreview(transfer.preview(expanded))
+        guard case .cooking(_, let current, _) = store.consoleSnapshot.status else {
+            return XCTFail("Recovery must retain the active cook")
+        }
+        XCTAssertEqual(current.number, 1)
+        XCTAssertEqual(current.instruction, "Prepare.")
+    }
+
     private func waitForMessage(
         _ store: AppStore,
         toBe expected: String?,

@@ -266,6 +266,7 @@ final class RecipeReviewLedgerTests: XCTestCase {
         )
 
         try repository.delete(id: recipe.id)
+        try repository.purge(id: recipe.id)
         XCTAssertNil(try reviews.fetch(recipeID: recipe.id))
         XCTAssertTrue(try reviews.fetchAll().isEmpty)
         try database.read { db in

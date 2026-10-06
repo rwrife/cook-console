@@ -2,6 +2,8 @@ import SwiftUI
 
 struct RecipeDetailView: View {
     @EnvironmentObject private var store: AppStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmingDelete = false
     let recipeID: UUID
 
     @State private var recipe: Recipe?
@@ -141,6 +143,10 @@ struct RecipeDetailView: View {
                         }
                     }
 
+                    Section {
+                        Button("Delete recipe…", role: .destructive) { confirmingDelete = true }
+                            .accessibilityIdentifier("Delete recipe")
+                    }
                     if !recipe.tags.isEmpty {
                         Section("Tags") {
                             ForEach(recipe.tags, id: \.self) { Text($0) }
@@ -177,6 +183,14 @@ struct RecipeDetailView: View {
             } else {
                 ContentUnavailableView("Recipe Not Found", systemImage: "exclamationmark.triangle")
             }
+        }
+        .confirmationDialog("Move recipe to Deleted Recipes?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete recipe", role: .destructive) {
+                do { try store.archiveRecipe(id: recipeID); dismiss() }
+                catch { store.present(error) }
+            }
+        } message: {
+            Text("Retained until you permanently delete it in Backup & recovery. Running timers stop and grocery selections are removed. Restore keeps recipe and cook history, but does not restart cooking or re-add groceries.")
         }
         .onAppear(perform: load)
     }
