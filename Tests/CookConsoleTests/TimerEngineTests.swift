@@ -4,6 +4,18 @@ import GRDB
 @testable import CookConsole
 
 final class TimerEngineTests: XCTestCase {
+    func testArchiveSynchronizationRemovesNotificationAndRestoreDoesNotRestartTimer() throws {
+        let fixture = try TimerFixture(now: 1_000)
+        let timer = try fixture.start(stepName: "Simmer", duration: 120)
+        let recipes = RecipeRepository(database: fixture.database)
+        try recipes.delete(id: fixture.recipe.id)
+        try fixture.engine.synchronizeNotifications()
+        XCTAssertTrue(fixture.notifications.allRemoved.contains(timer.id))
+        try recipes.restore(id: fixture.recipe.id)
+        XCTAssertEqual(try fixture.repository.fetchTimer(id: timer.id)?.status, .cancelled)
+        XCTAssertThrowsError(try fixture.engine.resume(timerID: timer.id))
+    }
+
     func testStartPersistsIdentitiesDeadlineAndStartedLogAndSchedulesNotification() throws {
         let fixture = try TimerFixture(now: 1_000)
 

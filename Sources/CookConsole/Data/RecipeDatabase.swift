@@ -328,6 +328,11 @@ enum RecipeDatabase {
                 columns: ["recipe_id", "tested_at"]
             )
         }
+        migrator.registerMigration("v11_recoverable_deletion") { db in
+            try db.alter(table: "recipes") { table in
+                table.add(column: "deleted_at", .datetime)
+            }
+        }
         return migrator
     }
 }

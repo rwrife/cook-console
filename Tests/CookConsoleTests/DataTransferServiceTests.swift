@@ -8,6 +8,166 @@ import GRDB
 /// the real trigger set, and the real domain validation — the same code the
 /// "Your data" screen calls.
 final class DataTransferServiceTests: XCTestCase {
+    func testPreviewCancelAndStaleApplyAreMutationFree() throws {
+        let (service, _, repository) = try makeService()
+        try repository.create(sampleRecipe())
+        var document = try service.exportDocument()
+        document.recipes[0].title = "Incoming title"
+        let before = try service.exportDocument()
+        let preview = try service.preview(document)
+        XCTAssertEqual(preview.outcome.recipesReplaced, 1)
+        XCTAssertEqual(try service.exportDocument(), before) // cancel means discard preview
+        try repository.create(sampleRecipe(title: "Changed meanwhile"))
+        XCTAssertThrowsError(try service.apply(preview))
+        XCTAssertEqual(try repository.fetchAll().first { $0.id == document.recipes[0].id }?.title, "Weeknight Chili")
+    }
+
+    func testArchiveRoundTripAndLegacyImportDoesNotResurrect() throws {
+        let (service, _, repository) = try makeService()
+        let recipe = try sampleRecipe()
+        try repository.create(recipe)
+        let legacy = try service.exportDocument()
+        XCTAssertTrue(try repository.delete(id: recipe.id))
+        XCTAssertTrue(try repository.fetchAll().isEmpty)
+        XCTAssertEqual(try repository.fetchArchived(), [recipe])
+        let archived = try service.exportDocument()
+        XCTAssertNotNil(archived.recipes[0].deletedAt)
+        _ = try service.applyValidated(legacy)
+        XCTAssertNil(try repository.fetch(id: recipe.id))
+        let (other, _, recovered) = try makeService()
+        _ = try other.apply(try other.preview(archived))
+        XCTAssertTrue(try recovered.fetchAll().isEmpty)
+        XCTAssertEqual(try recovered.fetchArchived(), [recipe])
+        try recovered.restore(id: recipe.id)
+        XCTAssertEqual(try recovered.fetch(id: recipe.id), recipe)
+        try recovered.delete(id: recipe.id)
+        try recovered.purge(id: recipe.id)
+        XCTAssertTrue(try recovered.fetchArchived().isEmpty)
+    }
+
+    func testInvalidDirectApplyAndPreviewRollBack() throws {
+        let (service, _, repository) = try makeService()
+        try repository.create(sampleRecipe())
+        var document = try service.exportDocument()
+        document.recipes[0].title = " "
+        XCTAssertThrowsError(try service.preview(document))
+        XCTAssertThrowsError(try service.applyValidated(document))
+        XCTAssertEqual(try repository.fetchAll()[0].title, "Weeknight Chili")
+    }
+
+    func testOnlyExplicitSaveConfirmationPersistsAcrossServiceInstances() throws {
+        let date = Date(timeIntervalSince1970: 1_800_000_000)
+        let (service, database, repository) = try makeService(now: date)
+        try repository.create(sampleRecipe())
+        _ = try service.exportDocument() // preparing/canceling never confirms a save
+        XCTAssertNil(try service.lastConfirmedBackup())
+        let reportURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".csv")
+        defer { try? FileManager.default.removeItem(at: reportURL) }
+        try service.writeHistoryCSV(to: reportURL)
+        XCTAssertNil(try service.lastConfirmedBackup())
+        try service.confirmBackupSaved()
+        let reopened = DataTransferService(database: database)
+        XCTAssertEqual(try reopened.lastConfirmedBackup(), date)
+    }
+
+    func testInterruptedApplyRollsBackAndPreviewRejectsDatabaseFailures() throws {
+        let (service, database, repository) = try makeService()
+        let first = try sampleRecipe(title: "First")
+        let second = try sampleRecipe(title: "Second")
+        var document = try service.exportDocument()
+        document.recipes = [storedCopy(of: first), storedCopy(of: second)]
+        let failure = ImportFailureSwitch()
+        try database.write { db in
+            db.add(function: DatabaseFunction("should_abort_import", argumentCount: 0) { _ in failure.enabled ? 1 : 0 })
+            try db.execute(sql: "CREATE TRIGGER simulated_interruption BEFORE INSERT ON recipes WHEN NEW.title = 'Second' AND should_abort_import() = 1 BEGIN SELECT RAISE(ABORT, 'interrupted'); END")
+        }
+        let preview = try service.preview(document)
+        XCTAssertEqual(preview.outcome.recipesAdded, 2)
+        failure.enabled = true // External interruption, without a database change after preview.
+        XCTAssertThrowsError(try service.apply(preview)) { error in
+            XCTAssertNotEqual(error as? DataTransferError, .stalePreview)
+        }
+        XCTAssertTrue(try repository.fetchAll().isEmpty)
+        XCTAssertThrowsError(try service.preview(document))
+        XCTAssertTrue(try repository.fetchAll().isEmpty)
+        XCTAssertThrowsError(try service.applyValidated(document))
+        XCTAssertTrue(try repository.fetchAll().isEmpty)
+    }
+
+    func testValidatedBytesStayBoundToPreview() throws {
+        let (service, _, repository) = try makeService()
+        let source = try sampleRecipe()
+        var document = try service.exportDocument()
+        document.recipes = [storedCopy(of: source)]
+        let url = try writeFile(String(decoding: service.encodedData(for: document), as: UTF8.self))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let preview = try service.preview(service.validateDocument(at: url))
+        XCTAssertEqual(preview.outcome.recipesAdded, 1)
+        try Data("malformed replacement".utf8).write(to: url)
+        _ = try service.apply(preview)
+        XCTAssertEqual(try repository.fetch(id: source.id), source)
+    }
+
+    func testArchiveStopsSessionAndTimersAndBlocksCookingAndKeepsHistory() throws {
+        let (service, database, repository) = try makeService()
+        let recipe = try sampleRecipe()
+        try repository.create(recipe)
+        let session = try repository.beginCook(for: recipe.id)
+        let timer = CookTimer(
+            id: UUID(), recipeID: recipe.id, stepID: recipe.steps[1].id, cookSessionID: session.id,
+            stepName: "Simmer", originalDuration: 300, status: .running,
+            startedAt: Date(), deadline: Date().addingTimeInterval(300),
+            remainingWhenPaused: nil, completedAt: nil, scheduleGeneration: 0
+        )
+        try TimerRepository(database: database).insertStarted(timer)
+        try repository.delete(id: recipe.id)
+        XCTAssertThrowsError(try repository.beginCook(for: recipe.id))
+        XCTAssertThrowsError(try GroceryRepository(database: database).addSelection(recipeID: recipe.id, servings: 1))
+        XCTAssertEqual(try repository.fetchCookSession(id: session.id)?.status, .abandoned)
+        XCTAssertEqual(try TimerRepository(database: database).fetchTimers().first?.status, .cancelled)
+        var document = try service.exportDocument()
+        document = try service.decodedDocument(from: service.encodedData(for: document))
+        let (other, _, recovered) = try makeService()
+        _ = try other.apply(try other.preview(document))
+        XCTAssertEqual(try recovered.fetchArchived(), [recipe])
+        XCTAssertEqual(try recovered.fetchCookSession(id: session.id)?.status, .abandoned)
+        XCTAssertEqual(try other.exportDocument().timers.first?.status, "cancelled")
+    }
+
+    func testLegacyGroceryImportDoesNotReAddDeletedRecipeAndPreviewMatchesApply() throws {
+        let (service, database, repository) = try makeService()
+        let recipe = try sampleRecipe()
+        try repository.create(recipe)
+        _ = try GroceryRepository(database: database).addSelection(recipeID: recipe.id, servings: 2)
+        let legacy = try service.exportDocument()
+        try repository.delete(id: recipe.id)
+        let preview = try service.preview(legacy)
+        XCTAssertEqual(preview.outcome.recipesArchived, 1)
+        XCTAssertEqual(preview.outcome.grocerySelectionsAdded, 0)
+        XCTAssertEqual(preview.outcome.grocerySelectionsExcluded, 1)
+        XCTAssertTrue(try GroceryRepository(database: database).fetchSelections().isEmpty)
+        XCTAssertEqual(try service.apply(preview), preview.outcome)
+        XCTAssertTrue(try GroceryRepository(database: database).fetchSelections().isEmpty)
+        XCTAssertNil(try repository.fetch(id: recipe.id))
+        try repository.restore(id: recipe.id)
+        XCTAssertTrue(try GroceryRepository(database: database).fetchSelections().isEmpty)
+    }
+
+    func testPreviewRefusesApplyEvenIfInterveningWriteRestoresOriginalContent() throws {
+        let (service, database, repository) = try makeService()
+        let recipe = try sampleRecipe()
+        try repository.create(recipe)
+        let preview = try service.preview(service.exportDocument())
+        try database.write { db in
+            try db.execute(sql: "UPDATE recipes SET title = 'Temporary' WHERE id = ?", arguments: [recipe.id.uuidString])
+            try db.execute(sql: "UPDATE recipes SET title = ? WHERE id = ?", arguments: [recipe.title, recipe.id.uuidString])
+        }
+        XCTAssertThrowsError(try service.apply(preview)) { error in
+            XCTAssertEqual(error as? DataTransferError, .stalePreview)
+        }
+        XCTAssertEqual(try repository.fetch(id: recipe.id), recipe)
+    }
+
     // MARK: - Fixtures
 
     private func makeService(
@@ -491,4 +651,9 @@ final class DataTransferServiceTests: XCTestCase {
         try text.write(to: url, atomically: true, encoding: .utf8)
         return url
     }
+}
+
+/// Accessed synchronously across DatabaseQueue.write calls in one test.
+private final class ImportFailureSwitch: @unchecked Sendable {
+    var enabled = false
 }

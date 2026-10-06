@@ -82,6 +82,7 @@ final class RecipeRepositoryTests: XCTestCase {
             "v8_add_scaling_guidance",
             "v9_create_grocery_list",
             "v10_create_recipe_review_ledger",
+            "v11_recoverable_deletion",
         ])
         let timerColumns = try database.read { db in
             try String.fetchAll(
@@ -280,7 +281,8 @@ final class RecipeRepositoryTests: XCTestCase {
                 + Int.fetchOne(db, sql: "SELECT COUNT(*) FROM recipe_steps")!
                 + Int.fetchOne(db, sql: "SELECT COUNT(*) FROM recipe_tags")!
         }
-        XCTAssertEqual(childCount, 0)
+        XCTAssertGreaterThan(childCount, 0)
+        try repository.purge(id: recipe.id)
     }
 
     func testCreateRollsBackParentWhenAChildInsertFails() throws {

@@ -1,10 +1,8 @@
 import XCTest
 
-/// Issue #6 UI coverage: the in-app "Your data" screen — the single place
-/// the user owns their data (JSON/CSV export through the system share
-/// sheet, validated JSON import, and the written privacy statement).
-/// The export path here exercises the real store end to end: button ->
-/// AppStore -> DataTransferService -> on-device file -> share item.
+/// Backup/recovery UI, using deterministic local fixtures for preview/apply.
+/// System Files save/cancel is verified manually; the real domain service
+/// tests prove that preparing JSON or exporting CSV never confirms a backup.
 final class DataOwnershipUITests: XCTestCase {
     private var app: XCUIApplication!
 
@@ -44,24 +42,11 @@ final class DataOwnershipUITests: XCTestCase {
         // No import has run yet: no stale summary may linger.
         XCTAssertFalse(app.staticTexts["Import summary"].exists)
 
-        // One-tap JSON backup: write, confirm, and a share item appears.
-        // Hittable scroll, not just existence: after the privacy-statement
-        // sweeps the sheet sits at the bottom and the export cell stays
-        // mounted in the CollectionView AX tree with a frame clipped under
-        // the navigation bar (run 35619636791: button frame y=31.3 under a
-        // nav bar starting at y=78 — the tap synthesized onto dead space
-        // and the "Export ready" alert never presented).
-        scrollUntilVisible(app.buttons["Export JSON backup"])
-        app.buttons["Export JSON backup"].tap()
-        XCTAssertTrue(
-            app.alerts["Export ready"].waitForExistence(timeout: 10),
-            app.debugDescription
-        )
-        app.alerts.buttons["OK"].tap()
-        XCTAssertTrue(
-            app.buttons["Share JSON backup"].waitForExistence(timeout: 5),
-            app.debugDescription
-        )
+        // File generation is never a confirmation; system Files UI is covered manually.
+        scrollUntilVisible(app.staticTexts["Last confirmed backup"])
+        XCTAssertTrue(app.staticTexts["Last confirmed backup"].label.contains("No confirmed"))
+        scrollToExists(app.staticTexts["Backup contents"])
+        XCTAssertTrue(app.staticTexts["Backup contents"].label.contains("Excludes pantry"))
 
         // CSV history export the same way (same hittable-scroll discipline).
         scrollUntilVisible(app.buttons["Export CSV history"])
@@ -83,6 +68,40 @@ final class DataOwnershipUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Import JSON backup"].exists)
     }
 
+    func testPreviewCancelApplyAndArchiveRestoreJourney() {
+        app.terminate()
+        app.launchArguments = ["-ui-testing-reset", "-ui-testing-recovery-fixture"]
+        app.launch()
+        app.buttons["Your data"].tap()
+        scrollUntilVisible(app.buttons["Preview recovery fixture"])
+        app.buttons["Preview recovery fixture"].tap()
+        XCTAssertTrue(app.staticTexts["Import preview summary"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Import preview summary"].label.contains("1 recipes replaced"))
+        app.buttons["Cancel"].tap()
+        XCTAssertFalse(app.staticTexts["Import summary"].exists)
+        scrollUntilVisible(app.buttons["Preview recovery fixture"])
+        app.buttons["Preview recovery fixture"].tap()
+        XCTAssertTrue(app.buttons["Apply JSON import"].waitForExistence(timeout: 5))
+        app.buttons["Apply JSON import"].tap()
+        scrollToExists(app.staticTexts["Import summary"])
+        XCTAssertTrue(app.staticTexts["Import summary"].label.contains("1 recipes replaced"))
+        // Dismiss the data sheet using its existing Done button.
+        app.buttons["Done"].tap()
+        let recipe = app.descendants(matching: .any).matching(identifier: "Recipe row Recovered Fixture").firstMatch
+        XCTAssertTrue(recipe.waitForExistence(timeout: 5), app.debugDescription)
+        recipe.tap()
+        scrollUntilVisible(app.buttons["Delete recipe"])
+        app.buttons["Delete recipe"].tap()
+        let confirmation = app.sheets.buttons["Delete recipe"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5), app.debugDescription)
+        confirmation.tap()
+        app.buttons["Your data"].tap()
+        scrollUntilVisible(app.buttons["Restore recipe Recovered Fixture"])
+        app.buttons["Restore recipe Recovered Fixture"].tap()
+        scrollToExists(app.staticTexts["Archive retention"])
+        XCTAssertFalse(app.buttons["Restore recipe Recovered Fixture"].exists)
+    }
+
     /// Scroll the sheet's list until the element's AX frame sits fully
     /// BELOW the sheet's navigation bar. Two weaker gates failed on the
     /// hosted runner:
@@ -100,10 +119,7 @@ final class DataOwnershipUITests: XCTestCase {
     /// section the earlier sweeps parked at. iOS 26 List bridges to
     /// UICollectionView: probe collectionViews first, table fallback.
     private func scrollUntilVisible(_ element: XCUIElement) {
-        XCTAssertTrue(
-            element.waitForExistence(timeout: 5),
-            app.debugDescription
-        )
+        scrollToExists(element)
         let scroller: XCUIElement
         if app.collectionViews.firstMatch.waitForExistence(timeout: 3) {
             scroller = app.collectionViews.firstMatch
@@ -117,16 +133,17 @@ final class DataOwnershipUITests: XCTestCase {
         // The presented sheet's nav bar is an opaque touch-capturing strip:
         // tapping a row whose center is under it is a dead tap.
         var safeTop = scroller.frame.minY
-        let sheetBar = app.navigationBars["Your Data"]
+        let sheetBar = app.navigationBars["Your Data"].exists ? app.navigationBars["Your Data"] : app.navigationBars.firstMatch
         if sheetBar.exists {
             safeTop = max(safeTop, sheetBar.frame.maxY)
         }
         for _ in 0..<12 {
-            if element.exists, element.frame.midY >= safeTop { return }
-            scroller.swipeDown()
+            if element.exists, element.frame.minY >= safeTop, element.frame.maxY <= scroller.frame.maxY { return }
+            if element.exists, element.frame.maxY > scroller.frame.maxY { scroller.swipeUp() }
+            else { scroller.swipeDown() }
         }
         XCTAssertTrue(
-            element.exists && element.frame.midY >= safeTop,
+            element.exists && element.frame.minY >= safeTop && element.frame.maxY <= scroller.frame.maxY,
             "Element center never moved below the sheet nav bar (safeTop=\(safeTop)).\n\n\(app.debugDescription)"
         )
     }

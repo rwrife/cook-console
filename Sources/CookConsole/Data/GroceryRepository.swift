@@ -76,6 +76,9 @@ final class GroceryRepository: @unchecked Sendable {
     func addSelection(recipeID: UUID, servings: Double) throws -> GrocerySelection {
         let candidate = try GrocerySelection(recipeID: recipeID, servings: servings)
         return try database.write { db in
+            guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM recipes WHERE id = ? AND deleted_at IS NULL)", arguments: [recipeID.uuidString]) == true else {
+                throw GroceryRepositoryError.invalidData("Only a recipe in the library can be added to groceries.")
+            }
             if let existingID: String = try String.fetchOne(
                 db,
                 sql: "SELECT id FROM grocery_selections WHERE recipe_id = ? LIMIT 1",
