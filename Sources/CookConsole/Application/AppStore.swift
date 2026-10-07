@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 @MainActor
 final class AppStore: ObservableObject {
@@ -20,6 +21,25 @@ final class AppStore: ObservableObject {
     /// detail page mid-cook. Gating the two copies on this flag keeps the
     /// alert on whichever surface is actually visible.
     @Published var isCookSurfaceActive = false
+    /// Off by default. A setting, not a durable cooking state; ContentView
+    /// separately scopes the actual UIKit idle override to foreground cooking.
+    @Published private(set) var keepScreenAwakeWhileCooking: Bool
+    @Published private(set) var idleTimerDisabled = false
+    func applyIdleTimerPolicy(sceneIsActive: Bool) {
+        let disabled = IdleTimerPolicy.shouldDisableIdleTimer(
+            keepAwakeEnabled: keepScreenAwakeWhileCooking,
+            cookSurfaceActive: isCookSurfaceActive,
+            sceneActive: sceneIsActive
+        )
+        UIApplication.shared.isIdleTimerDisabled = disabled
+        if idleTimerDisabled != disabled { idleTimerDisabled = disabled }
+    }
+
+    func setKeepScreenAwakeWhileCooking(_ enabled: Bool) {
+        keepScreenAwakeWhileCooking = enabled
+        UserDefaults.standard.set(enabled, forKey: "keepScreenAwakeWhileCooking")
+    }
+
     /// Snapshot rendered by the persistent console surface (both layouts).
     /// Derived purely from recipes/sessions/timers already in this store.
     @Published private(set) var consoleSnapshot: ConsoleSnapshot = .idle
@@ -50,6 +70,10 @@ final class AppStore: ObservableObject {
         notificationService: LocalNotificationService? = nil
     ) {
         self.repository = repository
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing-reset") {
+            UserDefaults.standard.removeObject(forKey: "keepScreenAwakeWhileCooking")
+        }
+        keepScreenAwakeWhileCooking = UserDefaults.standard.bool(forKey: "keepScreenAwakeWhileCooking")
         self.timerEngine = timerEngine
         self.notificationService = notificationService
         notificationAuthorization = timerEngine?.notificationAuthorization ?? .unknown
@@ -124,18 +148,24 @@ final class AppStore: ObservableObject {
                     ))
                 }
                 if ProcessInfo.processInfo.arguments.contains("-ui-testing-a11y-recipe-fixture") {
-                    // Issue #7 narration fixture: a tagged recipe so the
+                    // Issue #7 and #23 accessibility fixture: a tagged recipe so the
                     // library row's spoken value (tags) and the detail
                     // servings readout can be asserted through AX labels
-                    // and values.
+                    // and values, with long instructions and ingredients for
+                    // accessibility size tests.
                     try recipeRepository.create(Recipe(
                         title: "A11y Soup",
                         servings: 4,
                         ingredients: [
                             try Ingredient(name: "Water", amount: 2, unit: .cup),
+                            try Ingredient(name: "Salt", amount: 1, unit: .teaspoon),
                         ],
                         steps: [
-                            try RecipeStep(instruction: "Simmer gently.", timerDuration: 600),
+                            try RecipeStep(
+                                instruction: "Bring soup to a simmer and continue simmering until the vegetables are tender.",
+                                timerDuration: 600
+                            ),
+                            try RecipeStep(instruction: "Serve warm with fresh herbs and crusty bread."),
                         ],
                         tags: ["weeknight"]
                     ))

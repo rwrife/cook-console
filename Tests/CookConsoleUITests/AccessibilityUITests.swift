@@ -24,6 +24,83 @@ final class AccessibilityUITests: XCTestCase {
         app.launch()
     }
 
+    // MARK: Cook screen accessibility and idle policy
+
+    /// The user preference survives a cook; the actual idle override must
+    /// follow the visible, foreground cook surface, not the saved preference.
+    func testKeepAwakeOnlyWhileCooking() {
+        launch(flags: ["-ui-testing-reset", "-ui-testing-a11y-recipe-fixture", "-ui-testing-report-idle-timer"])
+        let idle = app.staticTexts["Idle timer state"]
+        XCTAssertTrue(idle.waitForExistence(timeout: 5))
+        XCTAssertEqual(idle.label, "Idle timer enabled")
+        app.buttons["A11y Soup"].tap()
+        app.buttons["Cook"].tap()
+        let keepAwake = app.switches["Keep screen awake while cooking"]
+        XCTAssertTrue(keepAwake.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertEqual(app.staticTexts["Idle timer state"].label, "Idle timer enabled")
+        tapSwitch(keepAwake)
+        XCTAssertTrue(app.staticTexts["Idle timer disabled"].waitForExistence(timeout: 5))
+        tapSwitch(keepAwake)
+        XCTAssertTrue(app.staticTexts["Idle timer enabled"].waitForExistence(timeout: 5))
+        tapSwitch(keepAwake)
+        XCTAssertTrue(app.staticTexts["Idle timer disabled"].waitForExistence(timeout: 5))
+        app.buttons["Full recipe"].tap()
+        XCTAssertTrue(app.staticTexts["Idle timer enabled"].waitForExistence(timeout: 5))
+        app.buttons["Cook"].tap()
+        XCTAssertTrue(app.staticTexts["Idle timer disabled"].waitForExistence(timeout: 5))
+        app.buttons["Next step"].tap()
+        app.buttons["Complete recipe"].tap()
+        XCTAssertTrue(app.staticTexts["Idle timer enabled"].waitForExistence(timeout: 5))
+        app.buttons["Cook"].tap()
+        XCTAssertTrue(app.staticTexts["Idle timer disabled"].waitForExistence(timeout: 5))
+        app.buttons["Abandon"].tap()
+        app.buttons["Abandon Cook"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Idle timer enabled"].waitForExistence(timeout: 5))
+        app.terminate()
+        app.launchArguments.removeAll { $0 == "-ui-testing-reset" }
+        app.launch()
+        app.buttons["A11y Soup"].tap()
+        app.buttons["Cook"].tap()
+        XCTAssertTrue(app.staticTexts["Idle timer disabled"].waitForExistence(timeout: 5))
+        app.buttons["Full recipe"].tap()
+        XCTAssertTrue(app.staticTexts["Idle timer enabled"].waitForExistence(timeout: 5))
+    }
+
+    private func tapSwitch(_ toggle: XCUIElement) {
+        scrollUntilHittable(toggle)
+        let control = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
+        control.tap()
+    }
+
+    /// Runs on both iPhone 17 and iPad A16: entire long instruction and
+    /// ingredient text must be accessible even when the visible preview is
+    /// narrow. The step counter and pinned pager remain in reading order.
+    func testCookInstructionAndIngredientsAtAccessibilitySize() {
+        launch(flags: [
+            "-ui-testing-reset", "-ui-testing-a11y-recipe-fixture",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ])
+        app.buttons["A11y Soup"].tap()
+        app.buttons["Cook"].tap()
+        let instruction = app.staticTexts["Current instruction"]
+        XCTAssertTrue(instruction.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(instruction.label.contains("continue simmering until the vegetables are tender"))
+        XCTAssertTrue(app.staticTexts["Step 1 of 2"].exists)
+        let ingredients = app.buttons["Ingredients"]
+        scrollUntilHittable(ingredients)
+        ingredients.tap()
+        let water = app.staticTexts["Cook ingredient Water"]
+        XCTAssertTrue(water.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(water.label.contains("Water"))
+        app.buttons["Done"].tap()
+        let next = app.buttons["Next step"]
+        XCTAssertTrue(next.isHittable)
+        assertAtLeast44(next, name: "Next step")
+        next.tap()
+        XCTAssertTrue(app.staticTexts["Step 2 of 2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Current instruction"].label.contains("Serve warm"))
+    }
+
     // MARK: VoiceOver semantics
 
     /// Timer state must be spoken as state, not read off a digit clock:

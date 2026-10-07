@@ -5,11 +5,14 @@ struct CookModeView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @AccessibilityFocusState private var instructionFocused: Bool
+    // ponytail: one foreground cook surface; add scene arbitration if multiwindow is enabled.
     let recipe: Recipe
 
     @State private var session: CookSession?
     @State private var progress: CookProgress?
     @State private var showingAbandonConfirmation = false
+    @State private var showingIngredients = false
 
     var body: some View {
         NavigationStack {
@@ -25,8 +28,11 @@ struct CookModeView: View {
                                 Text(recipe.steps[progress.currentStepIndex].instruction)
                                     .font(.largeTitle)
                                     .fontWeight(.semibold)
+                                    .fixedSize(horizontal: false, vertical: true)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.vertical)
+                                    .accessibilityIdentifier("Current instruction")
+                                    .accessibilityFocused($instructionFocused)
 
                                 currentStepTimerControls(progress: progress)
 
@@ -36,7 +42,7 @@ struct CookModeView: View {
                                     VStack(alignment: .leading, spacing: 8) {
                                         Label(message, systemImage: "bell.slash")
                                             .font(.callout)
-                                            .foregroundStyle(.orange)
+                                            .foregroundStyle(.primary)
                                             .accessibilityIdentifier("Timer notification fallback")
 
                                         if NotificationPermissionGuidance.showsSettingsLink(
@@ -60,6 +66,19 @@ struct CookModeView: View {
                                         }
                                     }
                                 }
+
+                                Button("Ingredients", systemImage: "list.bullet") {
+                                    showingIngredients = true
+                                }
+                                .frame(minWidth: 44, minHeight: 44)
+                                .accessibilityIdentifier("Ingredients")
+
+                                Toggle("Keep screen awake while cooking", isOn: Binding(
+                                    get: { store.keepScreenAwakeWhileCooking },
+                                    set: { store.setKeepScreenAwakeWhileCooking($0) }
+                                ))
+                                .frame(minHeight: 44)
+                                .accessibilityIdentifier("Keep screen awake while cooking")
                             }
                         }
 
@@ -124,6 +143,24 @@ struct CookModeView: View {
             .onAppear(perform: begin)
         }
         .onDisappear { store.isCookSurfaceActive = false }
+        .safeAreaInset(edge: .top) {
+            if ProcessInfo.processInfo.arguments.contains("-ui-testing-report-idle-timer") {
+                Text(store.idleTimerDisabled ? "Idle timer disabled" : "Idle timer enabled")
+                    .font(.caption2)
+                    .accessibilityIdentifier("Idle timer state")
+            }
+        }
+        .sheet(isPresented: $showingIngredients) {
+            NavigationStack {
+                List(recipe.ingredients) { ingredient in
+                    Text("\(KitchenQuantityFormatter.string(ingredient.amount)) \(ingredient.unit.symbol) \(ingredient.name)")
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("Cook ingredient \(ingredient.name)")
+                }
+                .navigationTitle("Ingredients (original servings)")
+                .toolbar { Button("Done") { showingIngredients = false } }
+            }
+        }
         .interactiveDismissDisabled()
         // Cook-mode-scoped completion alert. A root-level alert bound to the
         // same shared state would race this presentation and *replace* the
@@ -211,6 +248,7 @@ struct CookModeView: View {
                 to: next.currentStepIndex
             )
             progress = next
+            instructionFocused = true
         } catch {
             store.present(error)
         }
@@ -230,6 +268,7 @@ struct CookModeView: View {
 private struct TimerTile: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let timer: CookTimer
 
     var body: some View {
@@ -250,7 +289,12 @@ private struct TimerTile: View {
                     .accessibilityLabel("\(timer.stepName) timer")
                     .accessibilityValue("\(TimerNarration.remaining(remaining)), \(state.accessibilityWord)")
                     .accessibilityIdentifier("Timer remaining \(timer.id.uuidString)")
-                HStack {
+                Text(state.accessibilityWord.capitalized)
+                    .font(.subheadline)
+                let controls = dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                    : AnyLayout(HStackLayout(spacing: 8))
+                controls {
                     if timer.status == .running {
                         Button { store.pauseTimer(id: timer.id) } label: {
                             Text("Pause").frame(minWidth: 44, minHeight: 44)
