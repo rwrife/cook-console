@@ -89,7 +89,11 @@ final class AccessibilityUITests: XCTestCase {
         let ingredients = app.buttons["Ingredients"]
         scrollUntilHittable(ingredients)
         ingredients.tap()
-        let water = app.staticTexts["Cook ingredient Water"]
+        // Identifiers ride the ingredient UUID (names can repeat within a
+        // recipe), so the journey matches by visible label instead.
+        let water = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Water")
+        ).firstMatch
         XCTAssertTrue(water.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertTrue(water.label.contains("Water"))
         app.buttons["Done"].tap()

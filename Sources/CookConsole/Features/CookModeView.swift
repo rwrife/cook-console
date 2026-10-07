@@ -155,7 +155,7 @@ struct CookModeView: View {
                 List(recipe.ingredients) { ingredient in
                     Text("\(KitchenQuantityFormatter.string(ingredient.amount)) \(ingredient.unit.symbol) \(ingredient.name)")
                         .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("Cook ingredient \(ingredient.name)")
+                        .accessibilityIdentifier("Cook ingredient \(ingredient.id.uuidString)")
                 }
                 .navigationTitle("Ingredients (original servings)")
                 .toolbar { Button("Done") { showingIngredients = false } }
