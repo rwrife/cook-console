@@ -1,10 +1,44 @@
 #if canImport(SwiftUI)
 import XCTest
+import UIKit
 
 @testable import CookConsole
 
 @MainActor
 final class AppStoreQueryTests: XCTestCase {
+    func testIdleTimerAppliesForegroundCookPolicyAndPersistsPreference() throws {
+        let defaults = UserDefaults.standard
+        let key = "keepScreenAwakeWhileCooking"
+        let old = defaults.object(forKey: key)
+        defer {
+            defaults.set(old, forKey: key)
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+        defaults.removeObject(forKey: key)
+        let repository = RecipeRepository(database: try RecipeDatabase.makeInMemory())
+        let store = AppStore(repository: repository)
+        XCTAssertFalse(store.keepScreenAwakeWhileCooking)
+        for preference in [false, true] {
+            store.setKeepScreenAwakeWhileCooking(preference)
+            for cooking in [false, true] {
+                store.isCookSurfaceActive = cooking
+                for foreground in [false, true] {
+                    store.applyIdleTimerPolicy(sceneIsActive: foreground)
+                    XCTAssertEqual(UIApplication.shared.isIdleTimerDisabled, preference && cooking && foreground)
+                    XCTAssertEqual(store.idleTimerDisabled, UIApplication.shared.isIdleTimerDisabled)
+                }
+            }
+        }
+        let relaunched = AppStore(repository: repository)
+        XCTAssertTrue(relaunched.keepScreenAwakeWhileCooking)
+        relaunched.applyIdleTimerPolicy(sceneIsActive: true)
+        XCTAssertFalse(UIApplication.shared.isIdleTimerDisabled)
+        store.isCookSurfaceActive = true
+        store.setKeepScreenAwakeWhileCooking(false)
+        store.applyIdleTimerPolicy(sceneIsActive: true)
+        XCTAssertFalse(UIApplication.shared.isIdleTimerDisabled)
+    }
+
     func testSaveAndEndCookReloadUsingActiveComposedQuery() throws {
         let repository = RecipeRepository(database: try RecipeDatabase.makeInMemory())
         let matching = try Recipe(

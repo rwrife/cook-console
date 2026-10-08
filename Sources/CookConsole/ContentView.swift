@@ -15,18 +15,41 @@ struct ContentView: View {
                 RecipeWorkspaceView()
             }
         }
-        .onAppear(perform: syncConsoleLayout)
+        .onAppear {
+            syncConsoleLayout()
+            store.applyIdleTimerPolicy(sceneIsActive: scenePhase == .active)
+        }
         .onChange(of: horizontalSizeClass) { _, _ in syncConsoleLayout() }
+        .onChange(of: store.isCookSurfaceActive) { _, _ in
+            store.applyIdleTimerPolicy(sceneIsActive: scenePhase == .active)
+        }
+        .onChange(of: store.keepScreenAwakeWhileCooking) { _, _ in
+            store.applyIdleTimerPolicy(sceneIsActive: scenePhase == .active)
+        }
         .safeAreaInset(edge: .top) { rootConsoleStrip }
         .safeAreaInset(edge: .top) { sizeCategoryReadout }
         .onChange(of: scenePhase) { _, phase in
+            store.applyIdleTimerPolicy(sceneIsActive: phase == .active)
             if phase == .active { store.reconcileTimers() }
         }
+        .safeAreaInset(edge: .top) { idleTimerReadout }
         .timerCompletionAlert(presentedWhile: .outsideCookSurface)
         .alert("Cook Console", isPresented: errorBinding) {
             Button("OK") { store.errorMessage = nil }
         } message: {
             Text(store.errorMessage ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private var idleTimerReadout: some View {
+        // Cook Mode's cover mounts its own copy; exactly one is ever in the
+        // AX tree so `staticTexts["Idle timer state"]` stays unique.
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing-report-idle-timer"),
+           !store.isCookSurfaceActive {
+            Text(store.idleTimerDisabled ? "Idle timer disabled" : "Idle timer enabled")
+                .font(.caption2)
+                .accessibilityIdentifier("Idle timer state")
         }
     }
 

@@ -83,6 +83,18 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
 
+      - name: Run accessibility-size cooking journey (iPad A16, regular width)
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project CookConsole.xcodeproj \
+            -scheme CookConsole \
+            -destination 'platform=iOS Simulator,name=iPad (A16),OS=latest' \
+            -only-testing:CookConsoleUITests/AccessibilityUITests/testCookInstructionAndIngredientsAtAccessibilitySize \
+            -resultBundlePath "$RUNNER_TEMP/CookAccessibility.ipad.xcresult" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO
+
       - name: Run fold-rehearsal rotation UI test (iPhone 17 Pro Max)
         run: |
           set -euo pipefail
@@ -112,6 +124,7 @@ jobs:
           path: |
             ${{ runner.temp }}/ConsoleSplit.ipad.xcresult
             ${{ runner.temp }}/ConsoleSplit.rotation.xcresult
+            ${{ runner.temp }}/CookAccessibility.ipad.xcresult
           if-no-files-found: warn
           retention-days: 7
 
