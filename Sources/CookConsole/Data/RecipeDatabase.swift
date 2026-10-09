@@ -353,6 +353,15 @@ enum RecipeDatabase {
                 BEGIN SELECT RAISE(ABORT, 'invalid timer identity'); END
                 """)
         }
+        migrator.registerMigration("v13_personal_recipe_notes") { db in
+            // Independent of recipe content so cookbook updates preserve personal data.
+            try db.create(table: "personal_recipe_notes") { table in
+                table.column("recipe_id", .text).primaryKey()
+                    .references("recipes", onDelete: .cascade)
+                table.column("notes", .text).notNull().defaults(to: "")
+                table.column("rating", .integer).check(sql: "rating IS NULL OR rating BETWEEN 1 AND 5")
+            }
+        }
         return migrator
     }
 }
