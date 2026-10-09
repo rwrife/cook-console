@@ -9,7 +9,9 @@ struct RecipeDetailView: View {
     @State private var recipe: Recipe?
     @State private var targetServings: Double = 1
     @State private var showingEdit = false
+    @State private var showingPersonalNotes = false
     @State private var showingCook = false
+    @State private var cookingSummary: RecipeCookingSummary?
 
     var body: some View {
         Group {
@@ -152,6 +154,15 @@ struct RecipeDetailView: View {
                             ForEach(recipe.tags, id: \.self) { Text($0) }
                         }
                     }
+                    Section("Personal") {
+                        Button("Notes, rating & cooking history") { showingPersonalNotes = true }
+                            .accessibilityIdentifier("Personal recipe details")
+                        if let summary = cookingSummary {
+                            if let date = summary.lastCookedAt {
+                                Text("Last cooked: \(date.formatted(date: .abbreviated, time: .shortened))")
+                            } else { Text("Not cooked yet") }
+                        }
+                    }
                 }
                 .safeAreaInset(edge: .bottom) {
                     Button {
@@ -177,6 +188,9 @@ struct RecipeDetailView: View {
                 .sheet(isPresented: $showingEdit, onDismiss: load) {
                     NavigationStack { RecipeEditorView(recipe: recipe) }
                 }
+                .sheet(isPresented: $showingPersonalNotes, onDismiss: load) {
+                    NavigationStack { PersonalRecipeView(recipeID: recipeID) }
+                }
                 .fullScreenCover(isPresented: $showingCook, onDismiss: load) {
                     CookModeView(recipe: recipe)
                 }
@@ -199,6 +213,7 @@ struct RecipeDetailView: View {
         guard let loaded = store.recipe(id: recipeID) else { return }
         let shouldResetScale = recipe == nil || recipe?.servings != loaded.servings
         recipe = loaded
+        cookingSummary = store.cookingSummary(for: recipeID)
         if shouldResetScale { targetServings = loaded.servings }
     }
 

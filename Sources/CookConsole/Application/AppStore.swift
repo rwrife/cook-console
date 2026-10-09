@@ -710,6 +710,20 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func personalNotes(for recipeID: UUID) -> PersonalRecipeNotes? {
+        do { return try repository.personalNotes(for: recipeID) }
+        catch { present(error); return nil }
+    }
+
+    func savePersonalNotes(_ notes: PersonalRecipeNotes) throws {
+        try repository.savePersonalNotes(notes)
+    }
+
+    func cookingSummary(for recipeID: UUID) -> RecipeCookingSummary? {
+        do { return RecipeCookingSummary(sessions: try repository.fetchCookSessions(for: recipeID)) }
+        catch { present(error); return nil }
+    }
+
     func recipe(id: UUID) -> Recipe? {
         do {
             return try repository.fetch(id: id)

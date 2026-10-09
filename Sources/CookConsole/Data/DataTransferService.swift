@@ -127,6 +127,8 @@ struct BackupDocument: Codable, Equatable, Sendable {
     // pre-grocery backup file.
     var grocerySelections: [StoredGrocerySelection]? = nil
     var groceryManualItems: [StoredGroceryManualItem]? = nil
+    /// Absent in legacy backups: preserve existing notes on import.
+    var personalNotes: [PersonalRecipeNotes]? = nil
 }
 
 /// Summary of one applied import, shaped for a user-visible conflict report.
@@ -152,12 +154,16 @@ struct JSONImportOutcome: Equatable, Sendable {
     var grocerySelectionsSkipped = 0
     var groceryManualItemsAdded = 0
     var groceryManualItemsSkipped = 0
+    var personalNotesImported = 0
 
     /// Human-readable conflict summary shown after an import.
     var summaryText: String {
         var parts: [String] = ["\(recipesAdded) recipes added"]
         if recipesSkipped > 0 { parts.append("\(recipesSkipped) unchanged duplicates kept") }
         if recipesReplaced > 0 { parts.append("\(recipesReplaced) recipes replaced") }
+        if personalNotesImported > 0 { parts.append("\(personalNotesImported) personal note/rating records restored (incoming records win)") }
+        else { parts.append("existing personal notes/ratings kept") }
+
         if recipesArchived > 0 { parts.append("\(recipesArchived) imported recipes retained in Deleted Recipes") }
         parts.append("\(sessionsAdded) cook sessions added")
         if sessionsSkipped > 0 { parts.append("\(sessionsSkipped) sessions already present") }
@@ -271,7 +277,8 @@ final class DataTransferService: @unchecked Sendable {
             timers: timers,
             timerEvents: snapshot.timerEvents,
             grocerySelections: snapshot.grocerySelections,
-            groceryManualItems: snapshot.groceryManualItems
+            groceryManualItems: snapshot.groceryManualItems,
+            personalNotes: snapshot.personalNotes
         )
     }
 
@@ -505,6 +512,13 @@ final class DataTransferService: @unchecked Sendable {
                 if let deletedAt = stored.deletedAt {
                     try db.execute(sql: "UPDATE recipes SET deleted_at = ? WHERE id = ?", arguments: [deletedAt, stored.id.uuidString])
                 }
+            }
+
+            // Only incoming personal records replace existing values. A legacy
+            // backup without this optional field leaves local notes untouched.
+            for note in document.personalNotes ?? [] {
+                try RecipeRepository.writePersonalNotes(note, in: db)
+                outcome.personalNotesImported += 1
             }
 
             for stored in document.sessions {
@@ -907,6 +921,23 @@ final class DataTransferService: @unchecked Sendable {
                 throw DataTransferError.invalidItem(path: path, reason: "position must be >= 0.")
             }
         }
+
+        var noteRecipeIDs = Set<UUID>()
+        for note in document.personalNotes ?? [] {
+            let path = "personal notes \(note.recipeID.uuidString)"
+            guard noteRecipeIDs.insert(note.recipeID).inserted else {
+                throw DataTransferError.invalidItem(path: path, reason: "duplicate notes for recipe in file.")
+            }
+            guard recipeIDs.contains(note.recipeID) else {
+                throw DataTransferError.invalidItem(path: path, reason: "references recipe \(note.recipeID.uuidString), which is not in the file (it may still exist in the library).")
+            }
+            guard note.rating.map({ (1...5).contains($0) }) ?? true else {
+                throw DataTransferError.invalidItem(path: path, reason: "rating must be between 1 and 5.")
+            }
+            guard note.notes.count <= 20_000 else {
+                throw DataTransferError.invalidItem(path: path, reason: "notes must be at most 20,000 characters.")
+            }
+        }
     }
 
     private static func validText(_ text: String) -> Bool {
@@ -923,7 +954,8 @@ final class DataTransferService: @unchecked Sendable {
         timers: [BackupDocument.StoredTimer],
         timerEvents: [BackupDocument.StoredTimerEvent],
         grocerySelections: [BackupDocument.StoredGrocerySelection],
-        groceryManualItems: [BackupDocument.StoredGroceryManualItem]
+        groceryManualItems: [BackupDocument.StoredGroceryManualItem],
+        personalNotes: [PersonalRecipeNotes]
     ) {
         let recipeRows = try Row.fetchAll(
             db,
@@ -1112,7 +1144,7 @@ final class DataTransferService: @unchecked Sendable {
             )
         }
 
-        return (recipes, sessions, timers, timerEvents, grocerySelections, groceryManualItems)
+        return (recipes, sessions, timers, timerEvents, grocerySelections, groceryManualItems, try RecipeRepository.allPersonalNotes(in: db))
     }
 
     // MARK: - Merge writes
