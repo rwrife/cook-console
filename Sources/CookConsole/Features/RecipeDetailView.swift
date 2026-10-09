@@ -145,15 +145,6 @@ struct RecipeDetailView: View {
                         }
                     }
 
-                    Section("Personal") {
-                        Button("Notes, rating & cooking history") { showingPersonalNotes = true }
-                            .accessibilityIdentifier("Personal recipe details")
-                        if let summary = cookingSummary {
-                            if let date = summary.lastCookedAt {
-                                Text("Last cooked: \(date.formatted(date: .abbreviated, time: .shortened))")
-                            } else { Text("Not cooked yet") }
-                        }
-                    }
                     Section {
                         Button("Delete recipe…", role: .destructive) { confirmingDelete = true }
                             .accessibilityIdentifier("Delete recipe")
@@ -161,6 +152,15 @@ struct RecipeDetailView: View {
                     if !recipe.tags.isEmpty {
                         Section("Tags") {
                             ForEach(recipe.tags, id: \.self) { Text($0) }
+                        }
+                    }
+                    Section("Personal") {
+                        Button("Notes, rating & cooking history") { showingPersonalNotes = true }
+                            .accessibilityIdentifier("Personal recipe details")
+                        if let summary = cookingSummary {
+                            if let date = summary.lastCookedAt {
+                                Text("Last cooked: \(date.formatted(date: .abbreviated, time: .shortened))")
+                            } else { Text("Not cooked yet") }
                         }
                     }
                 }
