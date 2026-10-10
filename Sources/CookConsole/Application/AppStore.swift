@@ -279,6 +279,20 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func reviewStarterCookbook() throws -> StarterCookbookReview? {
+        try StarterCookbookService(repository: repository).review(StarterCookbookPack.bundled())
+    }
+
+    func acceptStarterCookbook(_ review: StarterCookbookReview) throws {
+        try StarterCookbookService(repository: repository).accept(review)
+        reloadLibrary()
+        reloadGrocery()
+    }
+
+    func skipStarterCookbook(_ review: StarterCookbookReview) throws {
+        try StarterCookbookService(repository: repository).skip(review)
+    }
+
     func loadLibrary(searchText: String = "", selectedTag: String? = nil) {
         librarySearchText = searchText
         librarySelectedTag = selectedTag
