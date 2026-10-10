@@ -49,6 +49,7 @@ struct RecipeLibraryContent: View {
     @State private var showingPantrySuggestions = false
     @State private var showingGroceryList = false
     @State private var showingReviewBoard = false
+    @State private var showingStarterCookbook = false
 
     var body: some View {
         Group {
@@ -92,6 +93,14 @@ struct RecipeLibraryContent: View {
         .navigationTitle("Recipes")
         .searchable(text: $searchText, prompt: "Search titles")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Starter Cookbook", systemImage: "books.vertical") {
+                    showingStarterCookbook = true
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Starter Cookbook")
+                .accessibilityIdentifier("Starter Cookbook")
+            }
             ToolbarItem(placement: .topBarLeading) {
                 Menu {
                     Button("All Tags") { selectedTag = nil }
@@ -174,6 +183,9 @@ struct RecipeLibraryContent: View {
             NavigationStack {
                 GroceryListView()
             }
+        }
+        .sheet(isPresented: $showingStarterCookbook) {
+            NavigationStack { StarterCookbookView() }
         }
         .sheet(isPresented: $showingReviewBoard) {
             NavigationStack {

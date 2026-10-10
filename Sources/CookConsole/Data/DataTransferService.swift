@@ -129,6 +129,8 @@ struct BackupDocument: Codable, Equatable, Sendable {
     var groceryManualItems: [StoredGroceryManualItem]? = nil
     /// Absent in legacy backups: preserve existing notes on import.
     var personalNotes: [PersonalRecipeNotes]? = nil
+    /// Optional local starter provenance and version decisions; legacy files preserve local values.
+    var starterCookbookMetadata: [String: String]? = nil
 }
 
 /// Summary of one applied import, shaped for a user-visible conflict report.
@@ -278,7 +280,8 @@ final class DataTransferService: @unchecked Sendable {
             timerEvents: snapshot.timerEvents,
             grocerySelections: snapshot.grocerySelections,
             groceryManualItems: snapshot.groceryManualItems,
-            personalNotes: snapshot.personalNotes
+            personalNotes: snapshot.personalNotes,
+            starterCookbookMetadata: snapshot.starterCookbookMetadata
         )
     }
 
@@ -514,6 +517,17 @@ final class DataTransferService: @unchecked Sendable {
                 }
             }
 
+            // Preserve local provenance on collisions, including purged starter tombstones.
+            for (key, value) in document.starterCookbookMetadata ?? [:] {
+                if key == StarterCookbookService.acceptedKey || key == StarterCookbookService.skippedKey {
+                    let local = try String.fetchOne(db, sql: "SELECT value FROM app_metadata WHERE key = ?", arguments: [key])
+                    let merged = max(Int(local ?? "0") ?? 0, Int(value) ?? 0)
+                    try db.execute(sql: "INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?, ?)", arguments: [key, String(merged)])
+                } else {
+                    try db.execute(sql: "INSERT OR IGNORE INTO app_metadata (key, value) VALUES (?, ?)", arguments: [key, value])
+                }
+            }
+
             // Only incoming personal records replace existing values. A legacy
             // backup without this optional field leaves local notes untouched.
             for note in document.personalNotes ?? [] {
@@ -719,6 +733,7 @@ final class DataTransferService: @unchecked Sendable {
     /// finding is reported before any database mutation, so a rejected file
     /// never leaves partial state.
     static func validateSemantics(of document: BackupDocument) throws {
+        try StarterCookbookService.validateMetadata(document.starterCookbookMetadata ?? [:])
         var recipeIDs = Set<UUID>()
         var recipeStepIDs: [UUID: Set<UUID>] = [:]
         var recipeStepCounts: [UUID: Int] = [:]
@@ -955,7 +970,8 @@ final class DataTransferService: @unchecked Sendable {
         timerEvents: [BackupDocument.StoredTimerEvent],
         grocerySelections: [BackupDocument.StoredGrocerySelection],
         groceryManualItems: [BackupDocument.StoredGroceryManualItem],
-        personalNotes: [PersonalRecipeNotes]
+        personalNotes: [PersonalRecipeNotes],
+        starterCookbookMetadata: [String: String]
     ) {
         let recipeRows = try Row.fetchAll(
             db,
@@ -1144,12 +1160,16 @@ final class DataTransferService: @unchecked Sendable {
             )
         }
 
-        return (recipes, sessions, timers, timerEvents, grocerySelections, groceryManualItems, try RecipeRepository.allPersonalNotes(in: db))
+        let starterMetadata = try Row.fetchAll(db, sql: "SELECT key, value FROM app_metadata WHERE key LIKE 'starter.cookbook.%'")
+        let starterValues = Dictionary(uniqueKeysWithValues: starterMetadata.map { row -> (String, String) in
+            (row["key"], row["value"])
+        })
+        return (recipes, sessions, timers, timerEvents, grocerySelections, groceryManualItems, try RecipeRepository.allPersonalNotes(in: db), starterValues)
     }
 
     // MARK: - Merge writes
 
-    private static func decodedRecipe(_ stored: BackupDocument.StoredRecipe) throws -> Recipe {
+    static func decodedRecipe(_ stored: BackupDocument.StoredRecipe) throws -> Recipe {
         try Recipe(
             id: stored.id,
             title: stored.title,

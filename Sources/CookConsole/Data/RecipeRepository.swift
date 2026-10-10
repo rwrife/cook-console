@@ -192,39 +192,42 @@ final class RecipeRepository {
     }
 
     func update(_ recipe: Recipe) throws {
-        try database.write { db in
-            try db.execute(
-                sql: """
-                    UPDATE recipes
-                    SET title = ?, servings = ?, is_favorite = ?,
-                        pan_size_guidance = ?, batch_size_guidance = ?,
-                        cooking_time_guidance = ?
-                    WHERE id = ?
-                    """,
-                arguments: [
-                    recipe.title,
-                    recipe.servings,
-                    recipe.isFavorite,
-                    recipe.panSizeGuidance,
-                    recipe.batchSizeGuidance,
-                    recipe.cookingTimeGuidance,
-                    recipe.id.uuidString,
-                ]
-            )
-            guard db.changesCount == 1 else {
-                throw RecipeRepositoryError.notFound(recipe.id)
-            }
-            try deleteChildren(of: recipe.id, from: db)
-            try insertChildren(of: recipe, into: db)
-            try db.execute(
-                sql: """
-                    UPDATE cook_sessions
-                    SET current_step = ?
-                    WHERE recipe_id = ? AND status = 'active' AND current_step >= ?
-                    """,
-                arguments: [recipe.steps.count - 1, recipe.id.uuidString, recipe.steps.count]
-            )
+        try database.write { db in try update(recipe, in: db) }
+    }
+
+    // Shared by the starter updater so content and provenance commit atomically.
+    func update(_ recipe: Recipe, in db: Database) throws {
+        try db.execute(
+            sql: """
+                UPDATE recipes
+                SET title = ?, servings = ?, is_favorite = ?,
+                    pan_size_guidance = ?, batch_size_guidance = ?,
+                    cooking_time_guidance = ?
+                WHERE id = ?
+                """,
+            arguments: [
+                recipe.title,
+                recipe.servings,
+                recipe.isFavorite,
+                recipe.panSizeGuidance,
+                recipe.batchSizeGuidance,
+                recipe.cookingTimeGuidance,
+                recipe.id.uuidString,
+            ]
+        )
+        guard db.changesCount == 1 else {
+            throw RecipeRepositoryError.notFound(recipe.id)
         }
+        try deleteChildren(of: recipe.id, from: db)
+        try insertChildren(of: recipe, into: db)
+        try db.execute(
+            sql: """
+                UPDATE cook_sessions
+                SET current_step = ?
+                WHERE recipe_id = ? AND status = 'active' AND current_step >= ?
+                """,
+            arguments: [recipe.steps.count - 1, recipe.id.uuidString, recipe.steps.count]
+        )
     }
 
     /// Retained indefinitely until explicit purge. Children and history survive.
@@ -269,7 +272,7 @@ final class RecipeRepository {
         }
     }
 
-    private func insert(_ recipe: Recipe, into db: Database) throws {
+    func insert(_ recipe: Recipe, into db: Database) throws {
         try db.execute(
             sql: """
                 INSERT INTO recipes
@@ -339,7 +342,7 @@ final class RecipeRepository {
         try db.execute(sql: "DELETE FROM recipe_tags WHERE recipe_id = ?", arguments: arguments)
     }
 
-    private func fetchRecipe(id: UUID, from db: Database, includeDeleted: Bool = false) throws -> Recipe? {
+    func fetchRecipe(id: UUID, from db: Database, includeDeleted: Bool = false) throws -> Recipe? {
         guard let recipeRow = try Row.fetchOne(
             db,
             sql: """

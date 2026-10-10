@@ -47,6 +47,7 @@ final class DataOwnershipUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Last confirmed backup"].label.contains("No confirmed"))
         scrollToExists(app.staticTexts["Backup contents"])
         XCTAssertTrue(app.staticTexts["Backup contents"].label.contains("Excludes pantry"))
+        XCTAssertTrue(app.staticTexts["Backup contents"].label.contains("starter cookbook"))
 
         // CSV history export the same way (same hittable-scroll discipline).
         scrollUntilVisible(app.buttons["Export CSV history"])
