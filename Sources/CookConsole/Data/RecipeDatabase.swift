@@ -362,6 +362,13 @@ enum RecipeDatabase {
                 table.column("rating", .integer).check(sql: "rating IS NULL OR rating BETWEEN 1 AND 5")
             }
         }
+        migrator.registerMigration("v14_cook_prep") { db in
+            try db.create(table: "cook_prep") { table in
+                table.column("session_id", .text).primaryKey()
+                    .references("cook_sessions", onDelete: .cascade)
+                table.column("data", .blob).notNull()
+            }
+        }
         return migrator
     }
 }

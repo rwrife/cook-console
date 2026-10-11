@@ -91,7 +91,7 @@ final class AccessibilityUITests: XCTestCase {
         ingredients.tap()
         // Identifiers ride the ingredient UUID (names can repeat within a
         // recipe), so the journey matches by visible label instead.
-        let water = app.staticTexts.matching(
+        let water = app.switches.matching(
             NSPredicate(format: "label CONTAINS %@", "Water")
         ).firstMatch
         XCTAssertTrue(water.waitForExistence(timeout: 5), app.debugDescription)

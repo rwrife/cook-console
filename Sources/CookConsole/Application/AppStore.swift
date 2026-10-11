@@ -756,6 +756,22 @@ final class AppStore: ObservableObject {
         reloadLibrary()
     }
 
+    @Published private(set) var cookPrepBySession: [UUID: CookPrep] = [:]
+
+    func loadCookPrep(sessionID: UUID, initialServings: Double) throws {
+        let value = try repository.cookPrep(sessionID: sessionID) ?? CookPrep(servings: initialServings)
+        // Persist the initial yield too, so a later detail-page scale cannot reset a resumed cook.
+        try repository.saveCookPrep(value, sessionID: sessionID)
+        cookPrepBySession[sessionID] = value
+    }
+
+    func saveCookPrep(_ value: CookPrep, sessionID: UUID) {
+        do {
+            try repository.saveCookPrep(value, sessionID: sessionID)
+            cookPrepBySession[sessionID] = value
+        } catch { present(error) }
+    }
+
     func beginCook(for recipeID: UUID) throws -> CookSession {
         let session = try repository.beginCook(for: recipeID)
         // A cook surface is about to mount for this session; adopt it as the
