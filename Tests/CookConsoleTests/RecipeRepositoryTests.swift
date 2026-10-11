@@ -85,6 +85,7 @@ final class RecipeRepositoryTests: XCTestCase {
             "v11_recoverable_deletion",
             "v12_historical_timer_identity",
             "v13_personal_recipe_notes",
+            "v14_cook_prep",
         ])
         let timerColumns = try database.read { db in
             try String.fetchAll(

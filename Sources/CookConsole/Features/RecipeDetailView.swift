@@ -192,7 +192,7 @@ struct RecipeDetailView: View {
                     NavigationStack { PersonalRecipeView(recipeID: recipeID) }
                 }
                 .fullScreenCover(isPresented: $showingCook, onDismiss: load) {
-                    CookModeView(recipe: recipe)
+                    CookModeView(recipe: recipe, initialServings: targetServings)
                 }
             } else {
                 ContentUnavailableView("Recipe Not Found", systemImage: "exclamationmark.triangle")

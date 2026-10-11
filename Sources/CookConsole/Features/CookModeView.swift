@@ -5,9 +5,11 @@ struct CookModeView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @AccessibilityFocusState private var instructionFocused: Bool
     // ponytail: one foreground cook surface; add scene arbitration if multiwindow is enabled.
     let recipe: Recipe
+    var initialServings: Double? = nil
 
     @State private var session: CookSession?
     @State private var progress: CookProgress?
@@ -18,6 +20,11 @@ struct CookModeView: View {
         NavigationStack {
             Group {
                 if let progress {
+                    HStack(spacing: 0) {
+                        if horizontalSizeClass == .regular, prep?.swapped == true {
+                            prepPane
+                            Divider()
+                        }
                     VStack(spacing: 28) {
                         Text("Step \(progress.currentStepIndex + 1) of \(progress.stepCount)")
                             .font(.headline)
@@ -33,6 +40,23 @@ struct CookModeView: View {
                                     .padding(.vertical)
                                     .accessibilityIdentifier("Current instruction")
                                     .accessibilityFocused($instructionFocused)
+
+                                if progress.currentStepIndex + 1 < progress.stepCount {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text("Next Step Preview")
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.secondary)
+                                        Text(recipe.steps[progress.currentStepIndex + 1].instruction)
+                                            .font(.body)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .padding()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityIdentifier("Next step preview")
+                                }
 
                                 currentStepTimerControls(progress: progress)
 
@@ -118,6 +142,12 @@ struct CookModeView: View {
                         }
                     }
                     .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        if horizontalSizeClass == .regular, prep?.swapped != true {
+                            Divider()
+                            prepPane
+                        }
+                    }
                 } else {
                     ProgressView("Starting cook…")
                 }
@@ -152,13 +182,9 @@ struct CookModeView: View {
         }
         .sheet(isPresented: $showingIngredients) {
             NavigationStack {
-                List(recipe.ingredients) { ingredient in
-                    Text("\(KitchenQuantityFormatter.string(ingredient.amount)) \(ingredient.unit.symbol) \(ingredient.name)")
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("Cook ingredient \(ingredient.id.uuidString)")
-                }
-                .navigationTitle("Ingredients (original servings)")
-                .toolbar { Button("Done") { showingIngredients = false } }
+                prepPane
+                    .navigationTitle("Prep")
+                    .toolbar { Button("Done") { showingIngredients = false } }
             }
         }
         .interactiveDismissDisabled()
@@ -172,6 +198,68 @@ struct CookModeView: View {
         .timerCompletionAlert(presentedWhile: .cookSurface)
     }
 
+    private var prep: CookPrep? {
+        guard let session else { return nil }
+        return store.cookPrepBySession[session.id]
+    }
+
+    private func changePrep(_ change: (inout CookPrep) -> Void) {
+        guard let session, var value = prep else { return }
+        change(&value)
+        store.saveCookPrep(value, sessionID: session.id)
+    }
+
+    private var prepPane: some View {
+        List {
+            Section("Prep") {
+                Text("Servings: \(RecipeAmountFormatter.string(prep?.servings ?? recipe.servings))")
+                    .accessibilityIdentifier("Prep servings")
+                HStack {
+                    Button("Fewer servings") {
+                        changePrep { $0.servings = max(0.5, $0.servings - 0.5) }
+                    }
+                    .disabled((prep?.servings ?? recipe.servings) <= 0.5)
+                    Spacer()
+                    Button("More servings") { changePrep { $0.servings += 0.5 } }
+                }
+                .buttonStyle(.borderless)
+                if horizontalSizeClass == .regular {
+                    Button("Swap Steps and Prep") { changePrep { $0.swapped.toggle() } }
+                        .accessibilityIdentifier("Swap Steps and Prep")
+                }
+            }
+            Section("Ingredients to prepare") {
+                ForEach(recipe.ingredients) { ingredient in
+                    let scaled = try? ScalingEngine.scaled(
+                        ingredient, ratio: (prep?.servings ?? recipe.servings) / recipe.servings
+                    )
+                    Toggle(isOn: Binding(
+                        get: { prep?.checkedIngredientIDs.contains(ingredient.id) ?? false },
+                        set: { checked in
+                            changePrep {
+                                if checked { $0.checkedIngredientIDs.insert(ingredient.id) }
+                                else { $0.checkedIngredientIDs.remove(ingredient.id) }
+                            }
+                        }
+                    )) {
+                        Text("\(scaled.map { KitchenQuantityFormatter.string($0.displayAmount) } ?? "?") \(ingredient.unit.symbol) \(ingredient.name)")
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityLabel("\(scaled.map { KitchenQuantityFormatter.string($0.displayAmount) } ?? "?") \(ingredient.unit.symbol) \(ingredient.name)")
+                    .accessibilityIdentifier("Cook ingredient \(ingredient.id.uuidString)")
+                }
+            }
+            Section("Equipment") {
+                TextField("Equipment (optional)", text: Binding(
+                    get: { prep?.equipment ?? "" },
+                    set: { equipment in changePrep { $0.equipment = equipment } }
+                ), axis: .vertical)
+                .accessibilityIdentifier("Prep equipment")
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     private func begin() {
         guard session == nil else { return }
         do {
@@ -181,6 +269,7 @@ struct CookModeView: View {
                 stepCount: recipe.steps.count,
                 currentStepIndex: min(active.currentStepIndex, recipe.steps.count - 1)
             )
+            try store.loadCookPrep(sessionID: active.id, initialServings: initialServings ?? recipe.servings)
             store.loadTimers(cookSessionID: active.id)
         } catch {
             store.present(error)

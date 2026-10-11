@@ -66,7 +66,18 @@ the same two-element input enum (`.compact` = single display,
 third state: the MVP never branches on topology beyond "console together
 vs. apart".
 
-## Out of scope (MVP hard line)
 
-- No fold SDK APIs, no multi-scene/multi-window sessions today, no
-  Android, no network. The zero-network CI gate keeps the last one honest.
+## Issue #26 iPhone Duo Steps/Prep Implementation (2026-10-11)
+
+### Official SDK Findings (WWDC / Tech Talks)
+1. **Outer Display & Simultaneous Multi-display**:
+   - `CameraCaptureAccessory` is the only official public API for outer-display pairing on iPhone Duo; it strictly requires a foreground, full-screen inner display with an active camera session (`AVCaptureSession`). Starting a camera session purely to unlock a secondary cooking display violates privacy, power, and app intent principles.
+   - Secondary standalone window creation via `UIWindowScene` is restricted by Apple to the **inner display** (outer display does not allow arbitrary extra scene creation).
+2. **Inner Display Dual-Pane Architecture**:
+   - The supported inner-display experience for side-by-side workflows is an adaptive two-pane layout (`Steps` & `Prep`) with automatic fallback to single-screen modal presentation on compact sizes.
+   - To avoid hardcoded hinge thresholds or device checks, layout responds to standard SwiftUI `horizontalSizeClass` and system display regions.
+3. **Session & Persistence Model**:
+   - Single shared `CookSession` in GRDB ensures both panes reflect the identical state.
+   - Preparation state (`servings`, `checkedIngredientIDs`, `equipment`, `swapped`) is persisted in `cook_prep` (migration `v14_cook_prep`), keyed by `session_id`.
+   - Browsing or toggling prep ingredients never mutates `currentStepIndex`.
+   - Role swapping ("Swap Steps and Prep") is supported on regular width without resetting active step, prep checks, or running timers.
