@@ -58,7 +58,7 @@ struct RecipeLibraryContent: View {
             if store.recipes.isEmpty {
                 VStack(spacing: 12) {
                     if hasActiveFilters {
-                        Text("0 recipes match")
+                        Text("0 matching recipes")
                             .font(.headline)
                             .accessibilityIdentifier("Discovery result count")
                         ForEach(activeFilterLabels, id: \.self) { label in
@@ -276,7 +276,7 @@ struct RecipeLibraryContent: View {
     private var resultCountText: String {
         let count = store.recipes.count
         let noun = count == 1 ? "recipe" : "recipes"
-        return "\(count) \(noun) match\(count == 1 ? "s" : "")"
+        return "\(count) matching \(noun)"
     }
 
     private func discoveryRowSubtitle(for recipe: Recipe) -> String {
