@@ -86,6 +86,7 @@ final class RecipeRepositoryTests: XCTestCase {
             "v12_historical_timer_identity",
             "v13_personal_recipe_notes",
             "v14_cook_prep",
+            "v15_recipe_total_minutes",
         ])
         let timerColumns = try database.read { db in
             try String.fetchAll(

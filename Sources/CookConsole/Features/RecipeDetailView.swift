@@ -130,6 +130,15 @@ struct RecipeDetailView: View {
                         }
                     }
 
+                    Section("Discovery") {
+                        Label(
+                            recipe.totalMinutes.map { "\($0) min total" } ?? "Duration not stated",
+                            systemImage: "stopwatch"
+                        )
+                        .accessibilityIdentifier("Recipe duration")
+                        Text("\(recipe.ingredients.count) ingredient rows")
+                    }
+
                     Section("Steps") {
                         ForEach(Array(recipe.steps.enumerated()), id: \.element.id) { index, step in
                             VStack(alignment: .leading, spacing: 6) {

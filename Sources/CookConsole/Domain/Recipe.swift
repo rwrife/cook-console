@@ -109,6 +109,8 @@ struct Recipe: Identifiable, Equatable, Sendable {
     let panSizeGuidance: String?
     let batchSizeGuidance: String?
     let cookingTimeGuidance: String?
+    /// Explicit total duration; nil means unknown, never inferred from timers.
+    let totalMinutes: Int?
 
     init(
         id: UUID = UUID(),
@@ -120,7 +122,8 @@ struct Recipe: Identifiable, Equatable, Sendable {
         isFavorite: Bool = false,
         panSizeGuidance: String? = nil,
         batchSizeGuidance: String? = nil,
-        cookingTimeGuidance: String? = nil
+        cookingTimeGuidance: String? = nil,
+        totalMinutes: Int? = nil
     ) throws {
         let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedTitle.isEmpty else {
@@ -146,6 +149,10 @@ struct Recipe: Identifiable, Equatable, Sendable {
         self.panSizeGuidance = Self.normalizedGuidance(panSizeGuidance)
         self.batchSizeGuidance = Self.normalizedGuidance(batchSizeGuidance)
         self.cookingTimeGuidance = Self.normalizedGuidance(cookingTimeGuidance)
+        if let totalMinutes, totalMinutes <= 0 {
+            throw DomainValidationError.nonPositiveOrNonFinite(field: "Total minutes")
+        }
+        self.totalMinutes = totalMinutes
     }
 
     private static func normalizedGuidance(_ value: String?) -> String? {

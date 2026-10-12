@@ -369,6 +369,12 @@ enum RecipeDatabase {
                 table.column("data", .blob).notNull()
             }
         }
+        migrator.registerMigration("v15_recipe_total_minutes") { db in
+            try db.alter(table: "recipes") { table in
+                table.add(column: "total_minutes", .integer)
+                    .check(sql: "total_minutes IS NULL OR total_minutes > 0")
+            }
+        }
         return migrator
     }
 }
