@@ -114,6 +114,17 @@ struct RecipeLibraryContent: View {
                 }
                 .accessibilityLabel("Filter by tag")
             }
+            ToolbarItem(placement: .topBarLeading) {
+                // Icon-only: a text label (~150pt) pushed the trailing
+                // Your data / Recipe Review items into the "More"
+                // overflow menu on iPhone widths (run 38267236638).
+                Button("Discovery Filters", systemImage: discovery.isActive ? "line.3.filter.decline.fill" : "line.3.filter") {
+                    showingFilters = true
+                }
+                .labelStyle(.iconOnly)
+                .accessibilityLabel("Discovery Filters")
+                .accessibilityIdentifier("Discovery Filters")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showingYourData = true
@@ -133,36 +144,20 @@ struct RecipeLibraryContent: View {
         }
         .safeAreaInset(edge: .bottom) {
             HStack {
-                Button("Discovery Filters", systemImage: discovery.isActive ? "line.3.filter.decline.fill" : "line.3.filter") {
-                    showingFilters = true
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.bordered)
-                .accessibilityLabel("Discovery Filters")
-                .accessibilityIdentifier("Discovery Filters")
-
-                Button("What Can I Make?", systemImage: "cabinet.fill") {
+                Button("What Can I Make?", systemImage: "cabinet") {
                     showingPantrySuggestions = true
                 }
-                .labelStyle(.iconOnly)
                 .buttonStyle(.bordered)
-                .accessibilityLabel("What Can I Make?")
                 .accessibilityIdentifier("What Can I Make")
 
                 // Issue #20: the combined grocery list lives at the same
                 // persistent bottom inset as the pantry entry — toolbar
                 // items disappear under an active search field (issue #3
                 // finding), and the grocery flow must stay reachable.
-                // Issue #27 repair: the pantry/grocery entries became
-                // icon-only so the fourth bottom-row entry (Discovery
-                // Filters) fits at compact width without truncation;
-                // tests and VoiceOver still see the full labels.
-                Button("Grocery", systemImage: "cart.fill") {
+                Button("Grocery", systemImage: "cart") {
                     showingGroceryList = true
                 }
-                .labelStyle(.iconOnly)
                 .buttonStyle(.bordered)
-                .accessibilityLabel("Grocery")
                 .accessibilityIdentifier("Grocery List")
 
                 Spacer()
