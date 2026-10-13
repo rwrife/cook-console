@@ -79,35 +79,17 @@ struct RecipeLibraryContent: View {
                 // Covers both the empty and populated states so size-class
                 // transition tests can prove the detail column stayed mounted.
                 .accessibilityIdentifier("Recipe browser")
-            } else {
+            } else if hasActiveFilters {
                 List {
-                    if hasActiveFilters {
-                        activeFiltersSection
-                    }
-                    ForEach(store.recipes) { recipe in
-                        NavigationLink(value: recipe.id) {
-                            HStack(spacing: 12) {
-                                Image(systemName: recipe.isFavorite ? "star.fill" : "fork.knife")
-                                    .foregroundStyle(recipe.isFavorite ? .yellow : .secondary)
-                                    .accessibilityHidden(true)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(recipe.title)
-                                        .font(.headline)
-                                    Text(discoveryRowSubtitle(for: recipe))
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        // Title as the label, tags as the value: the earlier
-                        // bare `.accessibilityLabel(title)` replaced the row's
-                        // combined narration, hiding tags from VoiceOver.
-                        .accessibilityLabel(recipe.title)
-                        .accessibilityValue(recipe.tags.isEmpty ? "no tags" : recipe.tags.joined(separator: ", "))
-                        .accessibilityIdentifier("Recipe row \(recipe.title)")
-                    }
+                    activeFiltersSection
+                    ForEach(store.recipes) { recipe in recipeRow(recipe) }
                 }
                 .accessibilityIdentifier("Recipe browser")
+            } else {
+                // Preserve pre-discovery List structure for normal browsing;
+                // dynamic-type row navigation relied on it in existing CI.
+                List(store.recipes) { recipe in recipeRow(recipe) }
+                    .accessibilityIdentifier("Recipe browser")
             }
         }
         .navigationTitle("Recipes")
@@ -285,6 +267,37 @@ struct RecipeLibraryContent: View {
         let count = store.recipes.count
         let noun = count == 1 ? "recipe" : "recipes"
         return "\(count) matching \(noun)"
+    }
+
+    /// One library row, shared by the plain and filtered list shapes.
+    @ViewBuilder
+    private func recipeRow(_ recipe: Recipe) -> some View {
+        NavigationLink(value: recipe.id) {
+            HStack(spacing: 12) {
+                Image(systemName: recipe.isFavorite ? "star.fill" : "fork.knife")
+                    .foregroundStyle(recipe.isFavorite ? .yellow : .secondary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(recipe.title)
+                        .font(.headline)
+                    // Filtered lists explain WHY a recipe matched (issue #27);
+                    // the unfiltered list keeps the exact pre-#27 row shape,
+                    // because accessibility-size row geometry is load-bearing
+                    // for existing journeys (run 38373187236).
+                    Text(hasActiveFilters
+                        ? discoveryRowSubtitle(for: recipe)
+                        : recipe.tags.joined(separator: " · "))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        // Title as the label, tags as the value: the earlier
+        // bare `.accessibilityLabel(title)` replaced the row's
+        // combined narration, hiding tags from VoiceOver.
+        .accessibilityLabel(recipe.title)
+        .accessibilityValue(recipe.tags.isEmpty ? "no tags" : recipe.tags.joined(separator: ", "))
+        .accessibilityIdentifier("Recipe row \(recipe.title)")
     }
 
     private func discoveryRowSubtitle(for recipe: Recipe) -> String {

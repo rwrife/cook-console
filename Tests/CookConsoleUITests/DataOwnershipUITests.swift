@@ -92,7 +92,17 @@ final class DataOwnershipUITests: XCTestCase {
         XCTAssertTrue(recipe.waitForExistence(timeout: 5), app.debugDescription)
         recipe.tap()
         scrollUntilVisible(app.buttons["Delete recipe"])
-        app.buttons["Delete recipe"].tap()
+        // The Cook safe-area button overlays the collection view's lower
+        // 74 points. A delete row can exist at y=804 yet a tap lands on Cook
+        // (run 38373187236), so scroll it above that inset first.
+        let deleteButton = app.buttons["Delete recipe"]
+        let cookButton = app.buttons["Cook"]
+        let detailList = app.collectionViews.firstMatch
+        for _ in 0..<6 where deleteButton.exists && cookButton.exists && deleteButton.frame.maxY >= cookButton.frame.minY {
+            detailList.swipeUp()
+        }
+        XCTAssertTrue(deleteButton.exists && cookButton.exists && deleteButton.frame.maxY < cookButton.frame.minY, app.debugDescription)
+        deleteButton.tap()
         let confirmation = app.sheets.buttons["Delete recipe"]
         XCTAssertTrue(confirmation.waitForExistence(timeout: 5), app.debugDescription)
         confirmation.tap()
