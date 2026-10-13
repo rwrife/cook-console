@@ -55,7 +55,8 @@ final class RecipeRepository {
 
     func fetchLibrary(
         searchText: String = "",
-        selectedTag: String? = nil
+        selectedTag: String? = nil,
+        discovery: RecipeDiscoveryFilter = RecipeDiscoveryFilter()
     ) throws -> [Recipe] {
         let recipes = try database.read { db in
             let identifiers = try String.fetchAll(
@@ -90,7 +91,7 @@ final class RecipeRepository {
             let matchesTag = tag?.isEmpty != false || recipe.tags.contains {
                 $0.caseInsensitiveCompare(tag ?? "") == .orderedSame
             }
-            return matchesTitle && matchesTag
+            return matchesTitle && matchesTag && discovery.matches(recipe)
         }
     }
 
@@ -202,7 +203,7 @@ final class RecipeRepository {
                 UPDATE recipes
                 SET title = ?, servings = ?, is_favorite = ?,
                     pan_size_guidance = ?, batch_size_guidance = ?,
-                    cooking_time_guidance = ?
+                    cooking_time_guidance = ?, total_minutes = ?
                 WHERE id = ?
                 """,
             arguments: [
@@ -212,6 +213,7 @@ final class RecipeRepository {
                 recipe.panSizeGuidance,
                 recipe.batchSizeGuidance,
                 recipe.cookingTimeGuidance,
+                recipe.totalMinutes,
                 recipe.id.uuidString,
             ]
         )
@@ -277,8 +279,8 @@ final class RecipeRepository {
             sql: """
                 INSERT INTO recipes
                     (id, title, servings, is_favorite,
-                     pan_size_guidance, batch_size_guidance, cooking_time_guidance)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                     pan_size_guidance, batch_size_guidance, cooking_time_guidance, total_minutes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
             arguments: [
                 recipe.id.uuidString,
@@ -288,6 +290,7 @@ final class RecipeRepository {
                 recipe.panSizeGuidance,
                 recipe.batchSizeGuidance,
                 recipe.cookingTimeGuidance,
+                recipe.totalMinutes,
             ]
         )
         try insertChildren(of: recipe, into: db)
@@ -347,7 +350,7 @@ final class RecipeRepository {
             db,
             sql: """
                 SELECT id, title, servings, is_favorite,
-                       pan_size_guidance, batch_size_guidance, cooking_time_guidance
+                       pan_size_guidance, batch_size_guidance, cooking_time_guidance, total_minutes
                 FROM recipes WHERE id = ? AND (deleted_at IS NULL OR ?)
                 """,
             arguments: [id.uuidString, includeDeleted]
@@ -416,7 +419,8 @@ final class RecipeRepository {
                 isFavorite: recipeRow["is_favorite"],
                 panSizeGuidance: recipeRow["pan_size_guidance"],
                 batchSizeGuidance: recipeRow["batch_size_guidance"],
-                cookingTimeGuidance: recipeRow["cooking_time_guidance"]
+                cookingTimeGuidance: recipeRow["cooking_time_guidance"],
+                totalMinutes: recipeRow["total_minutes"]
             )
         } catch let error as RecipeRepositoryError {
             throw error

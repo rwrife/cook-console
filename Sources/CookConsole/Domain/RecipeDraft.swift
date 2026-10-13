@@ -11,6 +11,7 @@ struct RecipeDraft {
     var panSizeGuidance: String
     var batchSizeGuidance: String
     var cookingTimeGuidance: String
+    var totalMinutes: String
 
     private let locale: Locale
 
@@ -30,6 +31,7 @@ struct RecipeDraft {
         panSizeGuidance = recipe?.panSizeGuidance ?? ""
         batchSizeGuidance = recipe?.batchSizeGuidance ?? ""
         cookingTimeGuidance = recipe?.cookingTimeGuidance ?? ""
+        totalMinutes = recipe?.totalMinutes.map(String.init) ?? ""
     }
 
     mutating func addIngredient() {
@@ -82,6 +84,11 @@ struct RecipeDraft {
                 timerDuration: timer
             )
         }
+        let trimmedMinutes = totalMinutes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let minutes = Int(trimmedMinutes)
+        if !trimmedMinutes.isEmpty && (minutes == nil || minutes! <= 0) {
+            throw DomainValidationError.nonPositiveOrNonFinite(field: "Total minutes")
+        }
         return try Recipe(
             id: id,
             title: title,
@@ -92,7 +99,8 @@ struct RecipeDraft {
             isFavorite: isFavorite,
             panSizeGuidance: panSizeGuidance,
             batchSizeGuidance: batchSizeGuidance,
-            cookingTimeGuidance: cookingTimeGuidance
+            cookingTimeGuidance: cookingTimeGuidance,
+            totalMinutes: minutes
         )
     }
 

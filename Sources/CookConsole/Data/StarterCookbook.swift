@@ -188,7 +188,7 @@ final class StarterCookbookService {
             ingredients: recipe.ingredients.map { .init(id: $0.id, name: $0.name, amount: $0.amount, unit: $0.unit.rawValue) },
             steps: recipe.steps.map { .init(id: $0.id, instruction: $0.instruction, timerDuration: $0.timerDuration) },
             panSizeGuidance: recipe.panSizeGuidance, batchSizeGuidance: recipe.batchSizeGuidance,
-            cookingTimeGuidance: recipe.cookingTimeGuidance)
+            cookingTimeGuidance: recipe.cookingTimeGuidance, totalMinutes: recipe.totalMinutes)
     }
 
     private static func baseline(_ json: String, id: UUID) throws -> BackupDocument.StoredRecipe {

@@ -82,6 +82,8 @@ struct BackupDocument: Codable, Equatable, Sendable {
         var panSizeGuidance: String? = nil
         var batchSizeGuidance: String? = nil
         var cookingTimeGuidance: String? = nil
+        /// Issue #27: optional additive — pre-discovery files decode to nil.
+        var totalMinutes: Int? = nil
         var deletedAt: Date? = nil
     }
 
@@ -977,7 +979,7 @@ final class DataTransferService: @unchecked Sendable {
             db,
             sql: """
                 SELECT id, title, servings, is_favorite,
-                       pan_size_guidance, batch_size_guidance, cooking_time_guidance, deleted_at
+                       pan_size_guidance, batch_size_guidance, cooking_time_guidance, total_minutes, deleted_at
                 FROM recipes ORDER BY rowid
                 """
         )
@@ -1034,6 +1036,7 @@ final class DataTransferService: @unchecked Sendable {
                 panSizeGuidance: row["pan_size_guidance"],
                 batchSizeGuidance: row["batch_size_guidance"],
                 cookingTimeGuidance: row["cooking_time_guidance"],
+                totalMinutes: row["total_minutes"],
                 deletedAt: row["deleted_at"]
             ))
         }
@@ -1193,7 +1196,8 @@ final class DataTransferService: @unchecked Sendable {
             isFavorite: stored.isFavorite,
             panSizeGuidance: stored.panSizeGuidance,
             batchSizeGuidance: stored.batchSizeGuidance,
-            cookingTimeGuidance: stored.cookingTimeGuidance
+            cookingTimeGuidance: stored.cookingTimeGuidance,
+            totalMinutes: stored.totalMinutes
         )
     }
 
@@ -1206,7 +1210,7 @@ final class DataTransferService: @unchecked Sendable {
             db,
             sql: """
                 SELECT title, servings, is_favorite,
-                       pan_size_guidance, batch_size_guidance, cooking_time_guidance
+                       pan_size_guidance, batch_size_guidance, cooking_time_guidance, total_minutes
                 FROM recipes WHERE id = ?
                 """,
             arguments: [idString]
@@ -1246,7 +1250,8 @@ final class DataTransferService: @unchecked Sendable {
             },
             panSizeGuidance: row["pan_size_guidance"],
             batchSizeGuidance: row["batch_size_guidance"],
-            cookingTimeGuidance: row["cooking_time_guidance"]
+            cookingTimeGuidance: row["cooking_time_guidance"],
+            totalMinutes: row["total_minutes"]
         )
         return try? decodedRecipe(stored)
     }
@@ -1256,12 +1261,13 @@ final class DataTransferService: @unchecked Sendable {
             sql: """
                 INSERT INTO recipes
                     (id, title, servings, is_favorite,
-                     pan_size_guidance, batch_size_guidance, cooking_time_guidance)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                     pan_size_guidance, batch_size_guidance, cooking_time_guidance, total_minutes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
             arguments: [
                 recipe.id.uuidString, recipe.title, recipe.servings, recipe.isFavorite,
                 recipe.panSizeGuidance, recipe.batchSizeGuidance, recipe.cookingTimeGuidance,
+                recipe.totalMinutes,
             ]
         )
         try insertRecipeChildren(db, recipe)
@@ -1276,12 +1282,13 @@ final class DataTransferService: @unchecked Sendable {
                 UPDATE recipes
                 SET title = ?, servings = ?, is_favorite = ?,
                     pan_size_guidance = ?, batch_size_guidance = ?,
-                    cooking_time_guidance = ?
+                    cooking_time_guidance = ?, total_minutes = ?
                 WHERE id = ?
                 """,
             arguments: [
                 recipe.title, recipe.servings, recipe.isFavorite,
                 recipe.panSizeGuidance, recipe.batchSizeGuidance, recipe.cookingTimeGuidance,
+                recipe.totalMinutes,
                 recipe.id.uuidString,
             ]
         )

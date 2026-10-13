@@ -101,6 +101,18 @@ struct RecipeEditorView: View {
                     .focused($focusedField, equals: .tags)
                     .accessibilityLabel("Tags")
                     .accessibilityIdentifier("Tags")
+                Text("For meal filters, use breakfast, lunch, dinner, or snack. Dietary tags are personal labels only; no dietary safety claim is verified.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Discovery time") {
+                TextField("Total minutes (optional)", text: $draft.totalMinutes)
+                    .keyboardType(.numberPad)
+                    .accessibilityIdentifier("Total minutes")
+                Text("Leave blank when unknown. Time filters exclude recipes without a stated duration.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section {

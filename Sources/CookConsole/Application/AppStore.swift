@@ -58,6 +58,7 @@ final class AppStore: ObservableObject {
     private let notificationService: LocalNotificationService?
     private var librarySearchText = ""
     private var librarySelectedTag: String?
+    private var libraryDiscovery = RecipeDiscoveryFilter()
     private var visibleCookSessionID: UUID?
     private var presentedCompletionID: UUID?
     private var expiryWakeUp: Task<Void, Never>?
@@ -168,6 +169,19 @@ final class AppStore: ObservableObject {
                             try RecipeStep(instruction: "Serve warm with fresh herbs and crusty bread."),
                         ],
                         tags: ["weeknight"]
+                    ))
+                }
+                if ProcessInfo.processInfo.arguments.contains("-ui-testing-discovery-fixture") {
+                    try recipeRepository.create(Recipe(
+                        title: "Quick Tomato Toast",
+                        servings: 1,
+                        ingredients: [
+                            try Ingredient(name: "Bread", amount: 1, unit: .each),
+                            try Ingredient(name: "Tomato", amount: 1, unit: .each),
+                        ],
+                        steps: [try RecipeStep(instruction: "Toast and serve.")],
+                        tags: ["breakfast", "vegetarian"],
+                        totalMinutes: 12
                     ))
                 }
                 if ProcessInfo.processInfo.arguments.contains("-ui-testing-pantry-fixture") {
@@ -293,9 +307,14 @@ final class AppStore: ObservableObject {
         try StarterCookbookService(repository: repository).skip(review)
     }
 
-    func loadLibrary(searchText: String = "", selectedTag: String? = nil) {
+    func loadLibrary(
+        searchText: String = "",
+        selectedTag: String? = nil,
+        discovery: RecipeDiscoveryFilter = RecipeDiscoveryFilter()
+    ) {
         librarySearchText = searchText
         librarySelectedTag = selectedTag
+        libraryDiscovery = discovery
         reloadLibrary()
     }
 
@@ -693,7 +712,8 @@ final class AppStore: ObservableObject {
         do {
             recipes = try repository.fetchLibrary(
                 searchText: librarySearchText,
-                selectedTag: librarySelectedTag
+                selectedTag: librarySelectedTag,
+                discovery: libraryDiscovery
             )
             var seenTags = Set<String>()
             allTags = try repository.fetchAll().flatMap(\.tags).filter {

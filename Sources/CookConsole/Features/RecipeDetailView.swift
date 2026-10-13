@@ -62,6 +62,12 @@ struct RecipeDetailView: View {
                         Text("Scale")
                     }
 
+                    if !recipe.tags.isEmpty {
+                        Section("Tags") {
+                            ForEach(recipe.tags, id: \.self) { Text($0) }
+                        }
+                    }
+
                     Section("Ingredients") {
                         ForEach(scaledIngredients(for: recipe)) { ingredient in
                             VStack(alignment: .leading, spacing: 4) {
@@ -130,6 +136,15 @@ struct RecipeDetailView: View {
                         }
                     }
 
+                    Section("Discovery") {
+                        Label(
+                            recipe.totalMinutes.map { "\($0) min total" } ?? "Duration not stated",
+                            systemImage: "stopwatch"
+                        )
+                        .accessibilityIdentifier("Recipe duration")
+                        Text("\(recipe.ingredients.count) ingredient rows")
+                    }
+
                     Section("Steps") {
                         ForEach(Array(recipe.steps.enumerated()), id: \.element.id) { index, step in
                             VStack(alignment: .leading, spacing: 6) {
@@ -148,11 +163,6 @@ struct RecipeDetailView: View {
                     Section {
                         Button("Delete recipe…", role: .destructive) { confirmingDelete = true }
                             .accessibilityIdentifier("Delete recipe")
-                    }
-                    if !recipe.tags.isEmpty {
-                        Section("Tags") {
-                            ForEach(recipe.tags, id: \.self) { Text($0) }
-                        }
                     }
                     Section("Personal") {
                         Button("Notes, rating & cooking history") { showingPersonalNotes = true }
