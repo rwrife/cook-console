@@ -62,6 +62,12 @@ struct RecipeDetailView: View {
                         Text("Scale")
                     }
 
+                    if !recipe.tags.isEmpty {
+                        Section("Tags") {
+                            ForEach(recipe.tags, id: \.self) { Text($0) }
+                        }
+                    }
+
                     Section("Ingredients") {
                         ForEach(scaledIngredients(for: recipe)) { ingredient in
                             VStack(alignment: .leading, spacing: 4) {
@@ -157,11 +163,6 @@ struct RecipeDetailView: View {
                     Section {
                         Button("Delete recipe…", role: .destructive) { confirmingDelete = true }
                             .accessibilityIdentifier("Delete recipe")
-                    }
-                    if !recipe.tags.isEmpty {
-                        Section("Tags") {
-                            ForEach(recipe.tags, id: \.self) { Text($0) }
-                        }
                     }
                     Section("Personal") {
                         Button("Notes, rating & cooking history") { showingPersonalNotes = true }
