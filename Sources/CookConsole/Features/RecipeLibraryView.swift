@@ -110,18 +110,24 @@ struct RecipeLibraryContent: View {
                         Button(tag) { selectedTag = tag }
                     }
                 } label: {
-                    Label(selectedTag ?? "All Tags", systemImage: "tag")
+                    Image(systemName: "tag")
                 }
-                .accessibilityLabel("Filter by tag")
+                // Icon-only: three leading text items + title + two
+                // trailing items overflow iPhone-width toolbars and drop
+                // "Your data"/"Recipe Review" into "More" (runs
+                // 38267236638 + 38388135511). Selected tag stays spoken.
+                .labelStyle(.iconOnly)
+                .accessibilityLabel(selectedTag.map { "Filter by tag: \($0)" } ?? "Filter by tag")
             }
             ToolbarItem(placement: .topBarLeading) {
                 // Icon-only: a text label (~150pt) pushed the trailing
                 // Your data / Recipe Review items into the "More"
                 // overflow menu on iPhone widths (run 38267236638).
-                Button("Discovery Filters", systemImage: discovery.isActive ? "line.3.filter.decline.fill" : "line.3.filter") {
+                Button {
                     showingFilters = true
+                } label: {
+                    Image(systemName: discovery.isActive ? "line.3.filter.decline.fill" : "line.3.filter")
                 }
-                .labelStyle(.iconOnly)
                 .accessibilityLabel("Discovery Filters")
                 .accessibilityIdentifier("Discovery Filters")
             }
